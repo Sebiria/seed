@@ -1,0 +1,16 @@
+from datetime import datetime
+
+#region Date du jour
+date_du_jour = datetime.now()
+jours_semaine = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+mois_annee = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+              "août", "septembre", "octobre", "novembre", "décembre"]
+date_du_jour_propre = f"{jours_semaine[date_du_jour.weekday()]} {date_du_jour.day:02d} {mois_annee[date_du_jour.month-1]} {date_du_jour.year}"
+#endregion
+
+#region Heure actuelle
+# Récupération de l'heure depuis la variable date_du_jour existante
+# (pas besoin de créer un nouvel appel à datetime.now())
+heure_actuelle_propre = f"{date_du_jour.hour}H{date_du_jour.minute:02d}"
+#endregion
+
