@@ -20,19 +20,19 @@ def afficher_header(fenetre):
 
     # Logo Le Mans
     image_logo_le_mans = Image.open("img/logo_le_mans.png")
-    image_logo_le_mans_redim = image_logo_le_mans.resize((72, 72), Image.Resampling.LANCZOS)
+    image_logo_le_mans_redim = image_logo_le_mans.resize((120, 60), Image.Resampling.LANCZOS)
     photo_logo_le_mans = ImageTk.PhotoImage(image_logo_le_mans_redim)
     label_logo_le_mans = Label(fenetre, image=photo_logo_le_mans, bd=0, highlightthickness=0)
     label_logo_le_mans.image = photo_logo_le_mans  # Garder la référence
-    label_logo_le_mans.place(x=18, y=92)
+    label_logo_le_mans.place(x=230, y=10)
 
     # Logo Seed
     image_logo_seed = Image.open("img/logo_seed.png")
-    image_logo_seed_redim = image_logo_seed.resize((78, 78), Image.Resampling.LANCZOS)
+    image_logo_seed_redim = image_logo_seed.resize((120, 60), Image.Resampling.LANCZOS)
     photo_logo_seed = ImageTk.PhotoImage(image_logo_seed_redim)
     label_logo_seed = Label(fenetre, image=photo_logo_seed, bd=0, highlightthickness=0)
     label_logo_seed.image = photo_logo_seed  # Garder la référence
-    label_logo_seed.place(x=604, y=88)
+    label_logo_seed.place(x=355, y=10)
 
     return label_image, label_body, label_logo_le_mans, label_logo_seed
 
@@ -93,3 +93,16 @@ def afficher_info_header(fenetre, onglet_actif):
     #endregion
 
     return label_info, label_date, label_heure_bg, label_heure, label_annee_bg, label_annee, label_annee_valeur, label_onglet_bg, label_onglet
+
+def affichage_body(fenetre):
+    #region Logo Dynanim
+    # LOGO DYNANIM
+    image_dynanim = Image.open("img/logo_dynanim.png")
+    image_dynanim_redim = image_dynanim.resize((140, 140), Image.Resampling.LANCZOS)
+    photo_dynanim = ImageTk.PhotoImage(image_dynanim_redim)
+    label_dynanim = Label(fenetre, image=photo_dynanim, bd=0, highlightthickness=0)
+    label_dynanim.image = photo_dynanim  # Garder la référence
+    label_dynanim.place(x=280, y=350)
+    #endregion
+
+    return label_dynanim
