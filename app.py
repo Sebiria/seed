@@ -17,7 +17,7 @@ onglet_actif = "ACCUEIL"
 # Affichage
 afficher_header(fenetre)
 afficher_info_header(fenetre, onglet_actif)
-affichage_body(fenetre)
+affichage_body(fenetre, onglet_actif)
 #endregion
 
 

@@ -94,15 +94,17 @@ def afficher_info_header(fenetre, onglet_actif):
 
     return label_info, label_date, label_heure_bg, label_heure, label_annee_bg, label_annee, label_annee_valeur, label_onglet_bg, label_onglet
 
-def affichage_body(fenetre):
+def affichage_body(fenetre, onglet_actif):
     #region Logo Dynanim
-    # LOGO DYNANIM
-    image_dynanim = Image.open("img/logo_dynanim.png")
-    image_dynanim_redim = image_dynanim.resize((140, 140), Image.Resampling.LANCZOS)
-    photo_dynanim = ImageTk.PhotoImage(image_dynanim_redim)
-    label_dynanim = Label(fenetre, image=photo_dynanim, bd=0, highlightthickness=0, bg="#D8F3DC")
-    label_dynanim.image = photo_dynanim  # Garder la référence
-    label_dynanim.place(x=280, y=350)
+    label_dynanim = None
+    if onglet_actif == "ACCUEIL":
+        # LOGO DYNANIM
+        image_dynanim = Image.open("img/logo_dynanim.png")
+        image_dynanim_redim = image_dynanim.resize((100, 100), Image.Resampling.LANCZOS)
+        photo_dynanim = ImageTk.PhotoImage(image_dynanim_redim)
+        label_dynanim = Label(fenetre, image=photo_dynanim, bd=0, highlightthickness=0, bg="#D8F3DC")
+        label_dynanim.image = photo_dynanim  # Garder la référence
+        label_dynanim.place(x=250, y=300)
     #endregion
 
     return label_dynanim
