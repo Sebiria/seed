@@ -1,4 +1,4 @@
-from tkinter import *
+from tkinter import Tk
 from affichage import afficher_header, afficher_info_header, affichage_body
 
 #region Paramétrage de la fenètre
@@ -13,28 +13,34 @@ onglet_actif = "ACCUEIL"
 #endregion
 
 #region Fonctions utilitaires
+def render_ui():
+    afficher_header(fenetre)
+    afficher_info_header(fenetre, onglet_actif)
+    affichage_body(fenetre, onglet_actif, on_logo_click, on_retour_click)
+
+
 def update_ui():
-    global onglet_actif
     # Détruire tous les widgets sauf la fenêtre
     for widget in fenetre.winfo_children():
         widget.destroy()
     # Redessiner l'interface
-    afficher_header(fenetre)
-    afficher_info_header(fenetre, onglet_actif)
-    affichage_body(fenetre, onglet_actif, on_logo_click)
+    render_ui()
 
 def on_logo_click():
     global onglet_actif
     onglet_actif = "DYNANIM"
+    update_ui()
+
+def on_retour_click():
+    global onglet_actif
+    onglet_actif = "ACCUEIL"
     update_ui()
 #endregion
 
 #region Background et affichage permanent
 
 # Affichage
-afficher_header(fenetre)
-afficher_info_header(fenetre, onglet_actif)
-affichage_body(fenetre, onglet_actif, on_logo_click)
+render_ui()
 #endregion
 
 
