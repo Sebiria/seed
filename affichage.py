@@ -1,5 +1,6 @@
-from tkinter import *
+from tkinter import Label
 from PIL import Image, ImageTk
+from main import annee_scolaire_propre, date_du_jour_propre, heure_actuelle_propre
 
 def afficher_header(fenetre):
     # Background du header
@@ -45,7 +46,6 @@ def afficher_info_header(fenetre, onglet_actif):
     label_info.image = photo_info  # Garder la référence
     label_info.place(x=215, y=70)  # Placement aléatoire à modifier
     # DATE
-    from main import date_du_jour_propre
     label_date = Label(fenetre, text=date_du_jour_propre, font=("Comic Sans MS", 12), fg="white", bg="#1B4332")
     label_date.place(x=350, y=90, anchor="center")  # Centre du label à cette position
     #endregion
@@ -59,7 +59,6 @@ def afficher_info_header(fenetre, onglet_actif):
     label_heure_bg.image = photo_heure  # Garder la référence
     label_heure_bg.place(x=70, y=20)  # Placement aléatoire à modifier
     # HEURE
-    from main import heure_actuelle_propre
     label_heure = Label(fenetre, text=heure_actuelle_propre, font=("Comic Sans MS", 12), fg="white", bg="#1B4332")
     label_heure.place(x=107, y=40, anchor="center")  # Centre du label à cette position
     #endregion
@@ -76,7 +75,6 @@ def afficher_info_header(fenetre, onglet_actif):
     label_annee = Label(fenetre, text="Année scolaire", font=("Comic Sans MS", 12), fg="white", bg="#1B4332")
     label_annee.place(x=575, y=37, anchor="center")
     # VALEUR
-    from main import annee_scolaire_propre
     label_annee_valeur = Label(fenetre, text=annee_scolaire_propre, font=("Comic Sans MS", 12), fg="white", bg="#1B4332")
     label_annee_valeur.place(x=575, y=62, anchor="center")
     #endregion
