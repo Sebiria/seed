@@ -6,7 +6,6 @@ fenetre = Tk()
 fenetre.title("Seed")
 fenetre.geometry(f"700x800+{(fenetre.winfo_screenwidth()-700)//2}+{(fenetre.winfo_screenheight()-800)//2}")
 fenetre.resizable(width=False, height=False)
-fenetre.config(bg="#D8F3DC")
 #endregion
 
 #region Variables

@@ -100,7 +100,7 @@ def affichage_body(fenetre):
     image_dynanim = Image.open("img/logo_dynanim.png")
     image_dynanim_redim = image_dynanim.resize((140, 140), Image.Resampling.LANCZOS)
     photo_dynanim = ImageTk.PhotoImage(image_dynanim_redim)
-    label_dynanim = Label(fenetre, image=photo_dynanim, bd=0, highlightthickness=0)
+    label_dynanim = Label(fenetre, image=photo_dynanim, bd=0, highlightthickness=0, bg="#D8F3DC")
     label_dynanim.image = photo_dynanim  # Garder la référence
     label_dynanim.place(x=280, y=350)
     #endregion
