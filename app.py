@@ -12,12 +12,29 @@ fenetre.resizable(width=False, height=False)
 onglet_actif = "ACCUEIL"
 #endregion
 
+#region Fonctions utilitaires
+def update_ui():
+    global onglet_actif
+    # Détruire tous les widgets sauf la fenêtre
+    for widget in fenetre.winfo_children():
+        widget.destroy()
+    # Redessiner l'interface
+    afficher_header(fenetre)
+    afficher_info_header(fenetre, onglet_actif)
+    affichage_body(fenetre, onglet_actif, on_logo_click)
+
+def on_logo_click():
+    global onglet_actif
+    onglet_actif = "DYNANIM"
+    update_ui()
+#endregion
+
 #region Background et affichage permanent
 
 # Affichage
 afficher_header(fenetre)
 afficher_info_header(fenetre, onglet_actif)
-affichage_body(fenetre, onglet_actif)
+affichage_body(fenetre, onglet_actif, on_logo_click)
 #endregion
 
 
