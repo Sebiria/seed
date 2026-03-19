@@ -1,5 +1,6 @@
 from datetime import datetime
 
+#region Infos header
 #region Date du jour
 date_du_jour = datetime.now()
 jours_semaine = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
@@ -14,3 +15,9 @@ date_du_jour_propre = f"{jours_semaine[date_du_jour.weekday()]} {date_du_jour.da
 heure_actuelle_propre = f"{date_du_jour.hour}H{date_du_jour.minute:02d}"
 #endregion
 
+#region Année scolaire actuelle
+annee_scolaire_propre = "2026-2027"
+#endregion
+
+
+#endregion

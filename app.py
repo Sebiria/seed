@@ -8,11 +8,15 @@ fenetre.geometry(f"700x800+{(fenetre.winfo_screenwidth()-700)//2}+{(fenetre.winf
 fenetre.resizable(width=False, height=False)
 #endregion
 
+#region Variables
+onglet_actif = "ACCUEIL"
+#endregion
+
 #region Background et affichage permanent
 
 # Affichage
 afficher_header(fenetre)
-afficher_info_header(fenetre)
+afficher_info_header(fenetre, onglet_actif)
 
 #endregion
 
