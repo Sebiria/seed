@@ -26,16 +26,10 @@ LABEL_INFO_ANNEE_BG_POS = (500, 20)
 LABEL_INFO_ANNEE_TITLE_POS = (575, 37)
 LABEL_INFO_ANNEE_VALUE_POS = (575, 62)
 
-LABEL_INFO_ONGLET_SIZE = (200, 40)
-LABEL_INFO_ONGLET_BG_POS = (250, 222)
-LABEL_INFO_ONGLET_TEXT_POS = (350, 241)
+LABEL_INFO_APP_SIZE = (200, 40)
+LABEL_INFO_APP_BG_POS = (250, 222)
+LABEL_INFO_APP_TEXT_POS = (350, 241)
 
-BODY_RETOUR_SIZE = (30, 30)
-BODY_RETOUR_POS = (200, 230)
-BODY_DYNANIM_SIZE = (100, 100)
-BODY_DYNANIM_POS = (50, 300)
-
-COLOR_BODY_BG = "#D8F3DC"
 COLOR_LABEL_TEXT_BG = "#1B4332"
 CLOCK_FORMAT = "%HH%M"
 
@@ -73,7 +67,7 @@ def afficher_header(fenetre):
 
     return label_image, label_body, label_logo_le_mans, label_logo_seed
 
-def afficher_info_header(fenetre, onglet_actif):
+def afficher_info_header(fenetre, app_actif):
     #region Date du jour
     # BACKGROUND
     image_info = Image.open("img/label_info.png")
@@ -131,49 +125,18 @@ def afficher_info_header(fenetre, onglet_actif):
     label_annee_valeur.place(x=LABEL_INFO_ANNEE_VALUE_POS[0], y=LABEL_INFO_ANNEE_VALUE_POS[1], anchor="center")
     #endregion
 
-    #region Onglet actif
+    #region App active
     # BACKGROUND
-    image_onglet = Image.open("img/label_info.png")
-    image_onglet_redim = image_onglet.resize(LABEL_INFO_ONGLET_SIZE, Image.Resampling.LANCZOS)
-    photo_onglet = ImageTk.PhotoImage(image_onglet_redim)
-    label_onglet_bg = Label(fenetre, image=photo_onglet)
-    label_onglet_bg.image = photo_onglet  # Garder la référence
-    label_onglet_bg.place(x=LABEL_INFO_ONGLET_BG_POS[0], y=LABEL_INFO_ONGLET_BG_POS[1])  # Placement aléatoire à modifier
+    image_app = Image.open("img/label_info.png")
+    image_app_redim = image_app.resize(LABEL_INFO_APP_SIZE, Image.Resampling.LANCZOS)
+    photo_app = ImageTk.PhotoImage(image_app_redim)
+    label_app_bg = Label(fenetre, image=photo_app)
+    label_app_bg.image = photo_app  # Garder la référence
+    label_app_bg.place(x=LABEL_INFO_APP_BG_POS[0], y=LABEL_INFO_APP_BG_POS[1])  # Placement aléatoire à modifier
     # VALEUR
-    label_onglet = Label(fenetre, text=onglet_actif, font=("Comic Sans MS", 15), fg="white", bg=COLOR_LABEL_TEXT_BG)
-    label_onglet.place(x=LABEL_INFO_ONGLET_TEXT_POS[0], y=LABEL_INFO_ONGLET_TEXT_POS[1], anchor="center")  # Centre du label à cette position
+    label_app = Label(fenetre, text=app_actif, font=("Comic Sans MS", 15), fg="white", bg=COLOR_LABEL_TEXT_BG)
+    label_app.place(x=LABEL_INFO_APP_TEXT_POS[0], y=LABEL_INFO_APP_TEXT_POS[1], anchor="center")  # Centre du label à cette position
     #endregion
 
-    return label_info, label_date, label_heure_bg, label_heure, label_annee_bg, label_annee, label_annee_valeur, label_onglet_bg, label_onglet
+    return label_info, label_date, label_heure_bg, label_heure, label_annee_bg, label_annee, label_annee_valeur, label_app_bg, label_app
 
-def affichage_body(fenetre, onglet_actif, on_logo_click=None, on_retour_click=None):
-    label_dynanim = None
-    label_retour = None
-
-    # region Logo Retour
-    if onglet_actif != "ACCUEIL":
-        # LOGO RETOUR
-        image_retour = Image.open("img/retour.png")
-        image_retour_redim = image_retour.resize(BODY_RETOUR_SIZE, Image.Resampling.LANCZOS)
-        photo_retour = ImageTk.PhotoImage(image_retour_redim)
-        label_retour = Label(fenetre, image=photo_retour, bd=0, highlightthickness=0, bg=COLOR_BODY_BG, cursor="hand2")
-        label_retour.image = photo_retour  # Garder la référence
-        label_retour.place(x=BODY_RETOUR_POS[0], y=BODY_RETOUR_POS[1])
-        if on_retour_click:
-            label_retour.bind("<Button-1>", lambda e: on_retour_click())
-    # endregion
-
-    #region Logo Dynanim
-    if onglet_actif == "ACCUEIL":
-        # LOGO DYNANIM
-        image_dynanim = Image.open("img/logo_dynanim.png")
-        image_dynanim_redim = image_dynanim.resize(BODY_DYNANIM_SIZE, Image.Resampling.LANCZOS)
-        photo_dynanim = ImageTk.PhotoImage(image_dynanim_redim)
-        label_dynanim = Label(fenetre, image=photo_dynanim, bd=0, highlightthickness=0, bg=COLOR_BODY_BG, cursor="hand2")
-        label_dynanim.image = photo_dynanim  # Garder la référence
-        label_dynanim.place(x=BODY_DYNANIM_POS[0], y=BODY_DYNANIM_POS[1])
-        if on_logo_click:
-            label_dynanim.bind("<Button-1>", lambda e: on_logo_click())
-    #endregion
-
-    return label_dynanim or label_retour

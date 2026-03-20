@@ -1,5 +1,6 @@
 from tkinter import Tk
-from affichage import afficher_header, afficher_info_header, affichage_body
+from affichage import afficher_header, afficher_info_header
+from dynanim import afficher_dynanim_body
 
 #region Paramétrage de la fenètre
 fenetre = Tk()
@@ -9,14 +10,22 @@ fenetre.resizable(width=False, height=False)
 #endregion
 
 #region Variables
-onglet_actif = "ACCUEIL"
+app_actif = "ACCUEIL"
+dynanim_onglet_actif = "ACCUEIL"
 #endregion
 
 #region Fonctions utilitaires
 def render_ui():
     afficher_header(fenetre)
-    afficher_info_header(fenetre, onglet_actif)
-    affichage_body(fenetre, onglet_actif, on_logo_click, on_retour_click)
+    afficher_info_header(fenetre, app_actif)
+    afficher_dynanim_body(
+        fenetre,
+        app_actif,
+        dynanim_onglet_actif,
+        on_logo_click,
+        on_retour_click,
+        on_tab_click,
+    )
 
 
 def update_ui():
@@ -27,13 +36,20 @@ def update_ui():
     render_ui()
 
 def on_logo_click():
-    global onglet_actif
-    onglet_actif = "DYNANIM"
+    global app_actif, dynanim_onglet_actif
+    app_actif = "DYNANIM"
+    dynanim_onglet_actif = "ACCUEIL"
     update_ui()
 
 def on_retour_click():
-    global onglet_actif
-    onglet_actif = "ACCUEIL"
+    global app_actif, dynanim_onglet_actif
+    app_actif = "ACCUEIL"
+    dynanim_onglet_actif = "ACCUEIL"
+    update_ui()
+
+def on_tab_click(onglet):
+    global dynanim_onglet_actif
+    dynanim_onglet_actif = onglet
     update_ui()
 #endregion
 
