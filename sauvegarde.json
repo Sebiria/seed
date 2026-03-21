@@ -1,0 +1,217 @@
+{
+  "profils": {
+    "ALICE MARTIN": {
+      "date_debut": "2025-09-27T00:00:00",
+      "activites": {
+        "p1": {
+          "lundi": "sportive",
+          "mardi": "libre",
+          "jeudi": "manuelle",
+          "vendredi": "sportive"
+        },
+        "p2": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p3": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p4": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p5": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        }
+      },
+      "penalite": {},
+      "projet": {},
+      "niveau": 3
+    },
+    "JULIEN ROBERT": {
+      "date_debut": "2025-09-21T00:00:00",
+      "activites": {
+        "p1": {
+          "lundi": "libre",
+          "mardi": "manuelle",
+          "jeudi": "sportive",
+          "vendredi": "libre"
+        },
+        "p2": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p3": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p4": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p5": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        }
+      },
+      "penalite": {},
+      "projet": {},
+      "niveau": 3
+    },
+    "MAYA DUPONT": {
+      "date_debut": "2025-09-22T00:00:00",
+      "activites": {
+        "p1": {
+          "lundi": "sportive",
+          "mardi": "sportive",
+          "jeudi": "sportive",
+          "vendredi": "manuelle"
+        },
+        "p2": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p3": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p4": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p5": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        }
+      },
+      "penalite": {},
+      "projet": {},
+      "niveau": 4
+    },
+    "THOMAS BERNARD": {
+      "date_debut": "2025-09-22T00:00:00",
+      "activites": {
+        "p1": {
+          "lundi": "sportive",
+          "mardi": "libre",
+          "jeudi": "sportive",
+          "vendredi": "sportive"
+        },
+        "p2": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p3": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p4": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p5": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        }
+      },
+      "penalite": {},
+      "projet": {},
+      "niveau": 3
+    },
+    "LOLA MOREAU": {
+      "date_debut": "2025-09-27T00:00:00",
+      "activites": {
+        "p1": {
+          "lundi": "sportive",
+          "mardi": "manuelle",
+          "jeudi": "manuelle",
+          "vendredi": "sportive"
+        },
+        "p2": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p3": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p4": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p5": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        }
+      },
+      "penalite": {},
+      "projet": {},
+      "niveau": 3
+    }
+  },
+  "periodes": {
+    "p1": [
+      "2025-09-01T00:00:00",
+      "2025-10-17T00:00:00"
+    ],
+    "p2": [
+      "2025-11-03T00:00:00",
+      "2025-12-19T00:00:00"
+    ],
+    "p3": [
+      "2026-01-05T00:00:00",
+      "2026-02-20T00:00:00"
+    ],
+    "p4": [
+      "2026-03-09T00:00:00",
+      "2026-04-17T00:00:00"
+    ],
+    "p5": [
+      "2026-05-04T00:00:00",
+      "2026-07-03T00:00:00"
+    ],
+    "ferie": []
+  }
+}

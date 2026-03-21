@@ -29,8 +29,11 @@ LABEL_INFO_ANNEE_VALUE_POS = (575, 62)
 LABEL_INFO_APP_SIZE = (200, 40)
 LABEL_INFO_APP_BG_POS = (250, 222)
 LABEL_INFO_APP_TEXT_POS = (350, 241)
+LABEL_INFO_PARAMETRE_SIZE = (40, 40)
+LABEL_INFO_PARAMETRE_POS = (460, 225)
 
 COLOR_LABEL_TEXT_BG = "#1B4332"
+COLOR_PARAM_BG = "#D8F3DC"
 CLOCK_FORMAT = "%HH%M"
 IMG_HEADER_BG = "img/header_bg.png"
 IMG_LABEL_INFO = "img/label_info.png"
@@ -77,7 +80,7 @@ def afficher_header(fenetre):
 
     return label_image, label_body, label_logo_le_mans, label_logo_seed
 
-def afficher_info_header(fenetre, app_actif):
+def afficher_info_header(fenetre, app_actif, on_parametre_click=None):
     #region Date du jour
     # BACKGROUND
     photo_info = _charger_photo(IMG_LABEL_INFO, LABEL_INFO_DATE_SIZE)
@@ -163,6 +166,21 @@ def afficher_info_header(fenetre, app_actif):
     # VALEUR
     label_app = Label(fenetre, text=app_actif, font=("Comic Sans MS", 15), fg="white", bg=COLOR_LABEL_TEXT_BG)
     label_app.place(x=LABEL_INFO_APP_TEXT_POS[0], y=LABEL_INFO_APP_TEXT_POS[1], anchor="center")
+
+    # Logo Paramètre (visible uniquement depuis l'accueil)
+    if app_actif == "ACCUEIL":
+        photo_parametre = _charger_photo("img/logo_parametre.png", LABEL_INFO_PARAMETRE_SIZE)
+        label_parametre = _creer_label_image(
+            fenetre,
+            photo_parametre,
+            bd=0,
+            highlightthickness=0,
+            bg=COLOR_PARAM_BG,
+            cursor="hand2",
+        )
+        label_parametre.place(x=LABEL_INFO_PARAMETRE_POS[0], y=LABEL_INFO_PARAMETRE_POS[1])
+        if on_parametre_click:
+            label_parametre.bind("<Button-1>", lambda _e: on_parametre_click())
     #endregion
 
     return label_info, label_date, label_heure_bg, label_heure, label_annee_bg, label_annee, label_annee_valeur, label_app_bg, label_app

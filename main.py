@@ -23,4 +23,8 @@ annee_scolaire_propre = "2026-2027"
 
 #region Données
 profils = {}
+
+# Clé : identifiant de période (ex: "p1")
+# Valeur : [date_debut (datetime), date_fin (datetime)] — vide jusqu'à saisie dans Paramètre/Vacances
+periodes = {p: [] for p in ["p1", "p2", "p3", "p4", "p5", "ferie"]}
 #endregion

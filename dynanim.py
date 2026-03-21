@@ -1,7 +1,16 @@
-from tkinter import Label, Entry, OptionMenu, StringVar, Button
+from tkinter import Label, Entry, OptionMenu, StringVar, Button, Listbox, Canvas, Frame, Scrollbar
+from tkinter import font as tkfont
 from PIL import Image, ImageTk
 from datetime import datetime
 import calendar
+from main import periodes, profils
+from calculs import (
+    calculer_xp_globale_profil,
+    calculer_score_engagement_profil,
+    infos_progression_niveau,
+    note_depuis_points_semaine,
+    points_semaine_type_periode,
+)
 
 # Constantes UI Dynanim (tailles / positions)
 BODY_RETOUR_SIZE = (30, 30)
@@ -11,15 +20,17 @@ BODY_DYNANIM_POS = (50, 300)
 COLOR_BODY_BG = "#D8F3DC"
 COLOR_NAV_TEXT_BG = "#FF7500"
 COLOR_VALIDER_INACTIF = "#F3A6A6"
+COLOR_PARAMETRE_TEXT = "#1B4332"
 
 BODY_WIDTH = 700
 BODY_X = 0
 
 NAV_TAB_SIZE = (110, 40)
 NAV_TAB_Y = 267  # Juste sous le label app_actif (y=222 + h=40 + 5px gap)
-NAV_TAB_LABELS = ["AJOUT", "PROFIL", "ACCUEIL", "+ / -", "STATS"]
+NAV_TAB_LABELS = ["AJOUT", "PROFILS", "ACCUEIL", "+ / -", "STATS"]
 NAV_TAB_FONT = ("Comic Sans MS", 11)
 NAV_TAB_FONT_ACTIVE = ("Comic Sans MS", 12, "bold")
+PARAM_TAB_LABELS = ["VACANCES", "FÉRIÉ", "RÉINITIALISATION"]
 
 # Constantes AJOUT
 ACTIVITES = ["sportive", "manuelle", "simple", "libre"]
@@ -29,6 +40,20 @@ AJOUT_FONT_ENTRY = ("Comic Sans MS", 11)
 AJOUT_CENTER_X = 350
 AJOUT_Y_START = 335          # Décalé pour éviter collision avec la barre de navigation
 AJOUT_TITLE_BG_SIZE = (250, 35)  # Fond label_nav_dynanim derrière chaque titre de section
+VACANCES_CENTER_X = 350
+VACANCES_Y_START = 335
+VACANCES_DATE_Y_OFFSET = 53
+PERIODES_SCOLAIRES = ["p1", "p2", "p3", "p4", "p5"]
+FERIE_Y_OFFSET = 30
+RESET_TITLE_Y = 338
+RESET_LIST_Y = 370
+RESET_LIST_HEIGHT = 12
+RESET_LEFT_X = 175
+RESET_RIGHT_X = 525
+RESET_LIST_WIDTH = 30
+RESET_SEPARATOR_X = 350
+RESET_SEPARATOR_TOP = 330
+RESET_SEPARATOR_BOTTOM = 760
 
 
 def _charger_photo(path, size):
@@ -46,6 +71,67 @@ def _creer_label_image(fenetre, photo, **kwargs):
 def _style_optionmenu_blanc(option_menu):
     option_menu.config(font=AJOUT_FONT_ENTRY, bg="white", fg="black", bd=1, highlightthickness=0)
     option_menu["menu"].config(font=AJOUT_FONT_ENTRY, bg="white", fg="black")
+
+
+def _placer_titre_section(fenetre, img_path, y, texte, bg=None):
+    if bg is None:
+        bg = COLOR_NAV_TEXT_BG
+    # Largeur dynamique selon le texte + marges
+    f = tkfont.Font(family="Comic Sans MS", size=12, weight="bold")
+    img_width = f.measure(texte) + 40  # 20px de marge de chaque côté
+    img_height = AJOUT_TITLE_BG_SIZE[1]
+    photo = _charger_photo(img_path, (img_width, img_height))
+    label_bg = _creer_label_image(fenetre, photo, bd=0, highlightthickness=0)
+    label_bg.place(x=VACANCES_CENTER_X - img_width // 2, y=y)
+    Label(fenetre, text=texte, font=AJOUT_FONT_LABEL, fg="white", bg=bg).place(
+        x=VACANCES_CENTER_X, y=y + img_height // 2, anchor="center"
+    )
+
+
+def _creer_selecteur_date(fenetre, y, annees_list, mois_list):
+    """Crée un sélecteur date (année/mois/jour) avec jours conditionnels."""
+    var_annee = StringVar()
+    var_mois = StringVar()
+    var_jour = StringVar()
+
+    opt_annee = OptionMenu(fenetre, var_annee, *annees_list)
+    _style_optionmenu_blanc(opt_annee)
+    opt_annee.config(width=6)
+    opt_annee.place(x=220, y=y, anchor="center")
+
+    opt_mois = OptionMenu(fenetre, var_mois, *mois_list)
+    _style_optionmenu_blanc(opt_mois)
+    opt_mois.config(width=12)
+    opt_mois.place(x=350, y=y, anchor="center")
+
+    opt_jour = OptionMenu(fenetre, var_jour, "")
+    _style_optionmenu_blanc(opt_jour)
+    opt_jour.config(width=4)
+    opt_jour.place(x=480, y=y, anchor="center")
+
+    def mettre_a_jour_jours(*_args):
+        annee_str = var_annee.get().strip()
+        mois_str = var_mois.get().strip()
+        opt_jour["menu"].delete(0, "end")
+
+        if not annee_str or not mois_str:
+            var_jour.set("")
+            return
+
+        nb_jours = calendar.monthrange(int(annee_str), int(mois_str.split("-")[0]))[1]
+        for jour in range(1, nb_jours + 1):
+            jour_label = f"{jour:02d}"
+            opt_jour["menu"].add_command(label=jour_label, command=lambda j=jour_label: var_jour.set(j))
+        var_jour.set("")
+
+    var_annee.trace_add("write", mettre_a_jour_jours)
+    var_mois.trace_add("write", mettre_a_jour_jours)
+
+    return {
+        "annee": var_annee,
+        "mois": var_mois,
+        "jour": var_jour,
+    }
 
 
 def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
@@ -303,6 +389,9 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
             if str(erreur) == "DOUBLON_PROFIL":
                 afficher_erreur("⚠ Ce participant existe déjà.")
                 return
+            if str(erreur) == "PERIODE_INTROUVABLE":
+                afficher_erreur("⚠ La date de début n'est dans aucune période configurée.")
+                return
             afficher_erreur("⚠ Impossible d'ajouter ce participant.")
             return
 
@@ -337,15 +426,681 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
     # endregion
 
 
+def afficher_onglet_vacances(fenetre, on_valider=None):
+    """Formulaire de saisie d'une période scolaire entre deux vacances."""
+    img_titre = "img/label_info.png"
+
+    annee_actuelle = datetime.now().year
+    annees_list = [str(annee_actuelle - 1), str(annee_actuelle), str(annee_actuelle + 1)]
+    mois_list = [
+        "01-Janvier", "02-Février", "03-Mars", "04-Avril", "05-Mai", "06-Juin",
+        "07-Juillet", "08-Août", "09-Septembre", "10-Octobre", "11-Novembre", "12-Décembre",
+    ]
+
+    _placer_titre_section(fenetre, img_titre, VACANCES_Y_START, "Période", bg=COLOR_PARAMETRE_TEXT)
+    var_periode = StringVar()
+    opt_periode = OptionMenu(fenetre, var_periode, *PERIODES_SCOLAIRES)
+    _style_optionmenu_blanc(opt_periode)
+    opt_periode.config(width=12)
+    opt_periode.place(x=VACANCES_CENTER_X, y=VACANCES_Y_START + 53, anchor="center")
+
+    _placer_titre_section(fenetre, img_titre, VACANCES_Y_START + 85, "Date de début", bg=COLOR_PARAMETRE_TEXT)
+    debut = _creer_selecteur_date(
+        fenetre,
+        VACANCES_Y_START + 85 + VACANCES_DATE_Y_OFFSET,
+        annees_list,
+        mois_list,
+    )
+
+    _placer_titre_section(fenetre, img_titre, VACANCES_Y_START + 170, "Date de fin", bg=COLOR_PARAMETRE_TEXT)
+    fin = _creer_selecteur_date(
+        fenetre,
+        VACANCES_Y_START + 170 + VACANCES_DATE_Y_OFFSET,
+        annees_list,
+        mois_list,
+    )
+
+    label_message = Label(fenetre, text="", font=("Comic Sans MS", 10, "italic"), fg="red", bg=COLOR_BODY_BG)
+    label_message.place(x=VACANCES_CENTER_X, y=VACANCES_Y_START + 300, anchor="center")
+
+    def lire_date(date_vars):
+        annee_str = date_vars["annee"].get().strip()
+        mois_str = date_vars["mois"].get().strip()
+        jour_str = date_vars["jour"].get().strip()
+        if not annee_str or not mois_str or not jour_str:
+            return None
+        try:
+            return datetime(int(annee_str), int(mois_str.split("-")[0]), int(jour_str))
+        except ValueError:
+            return None
+
+    def annuler_disparition_message():
+        after_id = getattr(fenetre, "_vacances_message_after_id", None)
+        if after_id:
+            fenetre.after_cancel(after_id)
+            fenetre._vacances_message_after_id = None
+
+    def masquer_message():
+        label_message.config(text="")
+        fenetre._vacances_message_after_id = None
+
+    def formulaire_est_valide():
+        date_debut = lire_date(debut)
+        date_fin = lire_date(fin)
+        return bool(var_periode.get().strip()) and bool(date_debut) and bool(date_fin) and date_debut <= date_fin
+
+    def rafraichir_etat_bouton(*_args):
+        couleur = COLOR_NAV_TEXT_BG if formulaire_est_valide() else COLOR_VALIDER_INACTIF
+        bouton_valider.config(bg=couleur, activebackground=couleur)
+
+    def vider_formulaire():
+        var_periode.set("")
+        for bloc in (debut, fin):
+            bloc["annee"].set("")
+            bloc["mois"].set("")
+            bloc["jour"].set("")
+        rafraichir_etat_bouton()
+
+    def afficher_succes():
+        annuler_disparition_message()
+        label_message.config(
+            text="La période a bien été prise en compte",
+            fg="#2E7D32",
+            bg=COLOR_BODY_BG,
+            font=("Comic Sans MS", 13, "bold"),
+        )
+        fenetre._vacances_message_after_id = fenetre.after(5000, masquer_message)
+
+    def afficher_erreur(message):
+        annuler_disparition_message()
+        label_message.config(text=message, fg="red", bg=COLOR_BODY_BG, font=("Comic Sans MS", 10, "bold", "italic"))
+
+    def valider():
+        date_debut = lire_date(debut)
+        date_fin = lire_date(fin)
+        periode = var_periode.get().strip()
+
+        if not periode:
+            afficher_erreur("⚠ Veuillez sélectionner une période.")
+            return
+        if not date_debut or not date_fin:
+            afficher_erreur("⚠ Veuillez sélectionner deux dates complètes.")
+            return
+        if date_debut > date_fin:
+            afficher_erreur("⚠ La date de début doit être antérieure ou égale à la date de fin.")
+            return
+
+        if on_valider:
+            on_valider(periode, date_debut, date_fin)
+        vider_formulaire()
+        afficher_succes()
+
+    bouton_valider = Button(
+        fenetre,
+        text="VALIDER",
+        font=("Comic Sans MS", 13, "bold"),
+        bg=COLOR_VALIDER_INACTIF,
+        fg="white",
+        cursor="hand2",
+        command=valider,
+        bd=0,
+        padx=20,
+        pady=5,
+        activebackground=COLOR_VALIDER_INACTIF,
+    )
+    bouton_valider.place(x=VACANCES_CENTER_X, y=VACANCES_Y_START + 345, anchor="center")
+
+    var_periode.trace_add("write", rafraichir_etat_bouton)
+    for bloc in (debut, fin):
+        bloc["annee"].trace_add("write", rafraichir_etat_bouton)
+        bloc["mois"].trace_add("write", rafraichir_etat_bouton)
+        bloc["jour"].trace_add("write", rafraichir_etat_bouton)
+
+    fenetre._vacances_vars = {
+        "periode": var_periode,
+        "date_debut": debut,
+        "date_fin": fin,
+    }
+    rafraichir_etat_bouton()
+
+
+def afficher_parametre_body(
+    fenetre,
+    parametre_onglet_actif="VACANCES",
+    on_parametre_tab_click=None,
+    on_vacances_valider=None,
+    on_ferie_valider=None,
+    on_parametre_mutation=None,
+):
+    """Affiche la navigation de l'app PARAMETRE et son contenu actif."""
+    tab_height = NAV_TAB_SIZE[1]
+    font_mesure = tkfont.Font(family="Comic Sans MS", size=12, weight="bold")
+    tab_widths = [font_mesure.measure(texte) + 36 for texte in PARAM_TAB_LABELS]
+
+    total_tabs_width = sum(tab_widths)
+    # Centrage réel depuis le milieu de la fenêtre
+    espace_x = (BODY_WIDTH - total_tabs_width) // (len(PARAM_TAB_LABELS) + 1)
+    x_tab = espace_x
+
+    for index, texte in enumerate(PARAM_TAB_LABELS):
+        tab_width = tab_widths[index]
+        nav_font = NAV_TAB_FONT_ACTIVE if texte == parametre_onglet_actif else NAV_TAB_FONT
+        photo_nav = _charger_photo("img/label_info.png", (tab_width, tab_height))
+
+        label_nav_bg = _creer_label_image(fenetre, photo_nav, bd=0, highlightthickness=0, cursor="hand2")
+        label_nav_bg.place(x=x_tab, y=NAV_TAB_Y)
+
+        label_nav_text = Label(
+            fenetre,
+            text=texte,
+            font=nav_font,
+            fg="white",
+            bg=COLOR_PARAMETRE_TEXT,
+            cursor="hand2",
+        )
+        label_nav_text.place(
+            x=x_tab + tab_width // 2,
+            y=NAV_TAB_Y + tab_height // 2,
+            anchor="center",
+        )
+
+        if on_parametre_tab_click:
+            onglet = texte
+            label_nav_bg.bind("<Button-1>", lambda _e, o=onglet: on_parametre_tab_click(o))
+            label_nav_text.bind("<Button-1>", lambda _e, o=onglet: on_parametre_tab_click(o))
+
+        x_tab += tab_width + espace_x
+
+    if parametre_onglet_actif == "VACANCES":
+        afficher_onglet_vacances(fenetre, on_valider=on_vacances_valider)
+    elif parametre_onglet_actif == "FÉRIÉ":
+        afficher_onglet_ferie(fenetre, on_valider=on_ferie_valider)
+    elif parametre_onglet_actif == "RÉINITIALISATION":
+        afficher_onglet_reinitialisation(fenetre, on_mutation=on_parametre_mutation)
+
+
+def afficher_onglet_ferie(fenetre, on_valider=None):
+    """Formulaire de saisie des jours fériés (une seule date)."""
+    img_titre = "img/label_info.png"
+    annee_actuelle = datetime.now().year
+    annees_list = [str(annee_actuelle - 1), str(annee_actuelle), str(annee_actuelle + 1)]
+    mois_list = [
+        "01-Janvier", "02-Février", "03-Mars", "04-Avril", "05-Mai", "06-Juin",
+        "07-Juillet", "08-Août", "09-Septembre", "10-Octobre", "11-Novembre", "12-Décembre",
+    ]
+
+    _placer_titre_section(fenetre, img_titre, VACANCES_Y_START + FERIE_Y_OFFSET, "Jour férié", bg=COLOR_PARAMETRE_TEXT)
+    ferie = _creer_selecteur_date(
+        fenetre,
+        VACANCES_Y_START + VACANCES_DATE_Y_OFFSET + FERIE_Y_OFFSET,
+        annees_list,
+        mois_list,
+    )
+
+    label_message = Label(fenetre, text="", font=("Comic Sans MS", 10, "italic"), fg="red", bg=COLOR_BODY_BG)
+    label_message.place(x=VACANCES_CENTER_X, y=VACANCES_Y_START + 190 + FERIE_Y_OFFSET, anchor="center")
+
+    def lire_date(date_vars):
+        annee_str = date_vars["annee"].get().strip()
+        mois_str = date_vars["mois"].get().strip()
+        jour_str = date_vars["jour"].get().strip()
+        if not annee_str or not mois_str or not jour_str:
+            return None
+        try:
+            return datetime(int(annee_str), int(mois_str.split("-")[0]), int(jour_str))
+        except ValueError:
+            return None
+
+    def annuler_disparition_message():
+        after_id = getattr(fenetre, "_ferie_message_after_id", None)
+        if after_id:
+            fenetre.after_cancel(after_id)
+            fenetre._ferie_message_after_id = None
+
+    def masquer_message():
+        label_message.config(text="")
+        fenetre._ferie_message_after_id = None
+
+    def formulaire_est_valide():
+        return bool(lire_date(ferie))
+
+    def rafraichir_etat_bouton(*_args):
+        couleur = COLOR_NAV_TEXT_BG if formulaire_est_valide() else COLOR_VALIDER_INACTIF
+        bouton_valider.config(bg=couleur, activebackground=couleur)
+
+    def vider_formulaire():
+        ferie["annee"].set("")
+        ferie["mois"].set("")
+        ferie["jour"].set("")
+        rafraichir_etat_bouton()
+
+    def afficher_succes():
+        annuler_disparition_message()
+        label_message.config(
+            text="Le jour férié a bien été pris en compte",
+            fg="#2E7D32",
+            bg=COLOR_BODY_BG,
+            font=("Comic Sans MS", 13, "bold"),
+        )
+        fenetre._ferie_message_after_id = fenetre.after(5000, masquer_message)
+
+    def afficher_erreur(message):
+        annuler_disparition_message()
+        label_message.config(text=message, fg="red", bg=COLOR_BODY_BG, font=("Comic Sans MS", 10, "bold", "italic"))
+
+    def valider():
+        date_ferie = lire_date(ferie)
+        if not date_ferie:
+            afficher_erreur("⚠ Veuillez sélectionner une date complète.")
+            return
+
+        if on_valider:
+            on_valider(date_ferie)
+        vider_formulaire()
+        afficher_succes()
+
+    bouton_valider = Button(
+        fenetre,
+        text="VALIDER",
+        font=("Comic Sans MS", 13, "bold"),
+        bg=COLOR_VALIDER_INACTIF,
+        fg="white",
+        cursor="hand2",
+        command=valider,
+        bd=0,
+        padx=20,
+        pady=5,
+        activebackground=COLOR_VALIDER_INACTIF,
+    )
+    bouton_valider.place(x=VACANCES_CENTER_X, y=VACANCES_Y_START + 235 + FERIE_Y_OFFSET, anchor="center")
+
+    ferie["annee"].trace_add("write", rafraichir_etat_bouton)
+    ferie["mois"].trace_add("write", rafraichir_etat_bouton)
+    ferie["jour"].trace_add("write", rafraichir_etat_bouton)
+
+    fenetre._ferie_vars = {"date": ferie}
+    rafraichir_etat_bouton()
+
+
+def afficher_onglet_reinitialisation(fenetre, on_mutation=None):
+    """Affiche les périodes et jours fériés avec sélection rouge/verte et suppression."""
+
+    def formater_date(dt):
+        return dt.strftime("%d/%m/%Y") if isinstance(dt, datetime) else "--/--/----"
+
+    Label(
+        fenetre,
+        text="PÉRIODES",
+        font=("Comic Sans MS", 13),
+        fg="white",
+        bg=COLOR_PARAMETRE_TEXT,
+    ).place(x=RESET_LEFT_X, y=RESET_TITLE_Y, anchor="center")
+
+    Label(
+        fenetre,
+        text="JOURS FÉRIÉS",
+        font=("Comic Sans MS", 13),
+        fg="white",
+        bg=COLOR_PARAMETRE_TEXT,
+    ).place(x=RESET_RIGHT_X, y=RESET_TITLE_Y, anchor="center")
+
+    Label(fenetre, bg=COLOR_PARAMETRE_TEXT).place(
+        x=RESET_SEPARATOR_X,
+        y=RESET_SEPARATOR_TOP,
+        width=2,
+        height=RESET_LIST_Y - RESET_SEPARATOR_TOP + tkfont.Font(family="Comic Sans MS", size=11).metrics("linespace") * RESET_LIST_HEIGHT,
+    )
+
+    lb_periodes = Listbox(
+        fenetre,
+        width=RESET_LIST_WIDTH,
+        height=RESET_LIST_HEIGHT,
+        font=("Comic Sans MS", 11),
+        bg="white",
+        fg="#1B4332",
+        selectbackground="#D8F3DC",
+        activestyle="none",
+    )
+    lb_periodes.place(x=RESET_LEFT_X, y=RESET_LIST_Y, anchor="n")
+
+    lb_feries = Listbox(
+        fenetre,
+        width=RESET_LIST_WIDTH,
+        height=RESET_LIST_HEIGHT,
+        font=("Comic Sans MS", 11),
+        bg="white",
+        fg="#1B4332",
+        selectbackground="#D8F3DC",
+        activestyle="none",
+    )
+    lb_feries.place(x=RESET_RIGHT_X, y=RESET_LIST_Y, anchor="n")
+
+    label_message = Label(fenetre, text="", font=("Comic Sans MS", 11, "bold"), fg="#2E7D32", bg=COLOR_BODY_BG)
+    label_message.place(x=VACANCES_CENTER_X, y=742, anchor="center")
+
+    red_periodes = set()
+    red_feries = set()
+    ferie_values = []
+
+    def mettre_couleur_ligne(listbox, index, rouge):
+        listbox.itemconfig(index, fg=("red" if rouge else "#1B4332"))
+
+    def annuler_disparition_message():
+        after_id = getattr(fenetre, "_reset_message_after_id", None)
+        if after_id:
+            fenetre.after_cancel(after_id)
+            fenetre._reset_message_after_id = None
+
+    def masquer_message():
+        label_message.config(text="")
+        fenetre._reset_message_after_id = None
+
+    def maj_bouton():
+        actif = bool(red_periodes or red_feries)
+        couleur = "#2E7D32" if actif else COLOR_VALIDER_INACTIF
+        bouton_valider.config(bg=couleur, activebackground=couleur)
+
+    def recharger_listes():
+        nonlocal ferie_values
+        red_periodes.clear()
+        red_feries.clear()
+        annuler_disparition_message()
+        label_message.config(text="")
+
+        lb_periodes.delete(0, "end")
+        for idx, periode in enumerate(PERIODES_SCOLAIRES):
+            bornes = periodes.get(periode, [])
+            if len(bornes) == 2:
+                date_debut, date_fin = bornes
+                texte = f"{periode.upper()} : {formater_date(date_debut)} -> {formater_date(date_fin)}"
+            else:
+                texte = f"{periode.upper()} : --/--/---- -> --/--/----"
+            lb_periodes.insert("end", texte)
+            mettre_couleur_ligne(lb_periodes, idx, False)
+
+        lb_feries.delete(0, "end")
+        ferie_values = list(periodes.get("ferie", []))
+        if ferie_values:
+            for idx, date_ferie in enumerate(ferie_values):
+                lb_feries.insert("end", formater_date(date_ferie))
+                mettre_couleur_ligne(lb_feries, idx, False)
+        else:
+            lb_feries.insert("end", "Aucun jour férié enregistré")
+            mettre_couleur_ligne(lb_feries, 0, False)
+
+        maj_bouton()
+
+    def toggle_ligne(listbox, index, red_set):
+        if index in red_set:
+            red_set.remove(index)
+            mettre_couleur_ligne(listbox, index, False)
+        else:
+            red_set.add(index)
+            mettre_couleur_ligne(listbox, index, True)
+        maj_bouton()
+
+    def on_click_periodes(_event):
+        selection = lb_periodes.curselection()
+        if not selection:
+            return "break"
+        idx = selection[0]
+        toggle_ligne(lb_periodes, idx, red_periodes)
+        lb_periodes.selection_clear(0, "end")
+        return "break"
+
+    def on_click_feries(_event):
+        selection = lb_feries.curselection()
+        if not selection:
+            return "break"
+        idx = selection[0]
+        if not ferie_values:
+            lb_feries.selection_clear(0, "end")
+            return "break"
+        toggle_ligne(lb_feries, idx, red_feries)
+        lb_feries.selection_clear(0, "end")
+        return "break"
+
+    def scroll_listbox(listbox, event):
+        listbox.yview_scroll(-1 * int(event.delta / 120), "units")
+        return "break"
+
+    def valider_suppression():
+        if not red_periodes and not red_feries:
+            return
+
+        periodes_supprimees = 0
+        for idx in sorted(red_periodes):
+            cle_periode = PERIODES_SCOLAIRES[idx]
+            if periodes.get(cle_periode):
+                periodes_supprimees += 1
+            periodes[cle_periode] = []
+
+        feries_supprimes = 0
+        if ferie_values and red_feries:
+            restants = [date_val for i, date_val in enumerate(ferie_values) if i not in red_feries]
+            feries_supprimes = len(ferie_values) - len(restants)
+            periodes["ferie"] = restants
+
+        if on_mutation:
+            on_mutation()
+
+        recharger_listes()
+        label_message.config(
+            text=f"Suppression effectuée: {periodes_supprimees} période(s), {feries_supprimes} férié(s)."
+        )
+        fenetre._reset_message_after_id = fenetre.after(5000, masquer_message)
+
+    bouton_valider = Button(
+        fenetre,
+        text="VALIDER",
+        font=("Comic Sans MS", 13, "bold"),
+        bg=COLOR_VALIDER_INACTIF,
+        fg="white",
+        cursor="hand2",
+        command=valider_suppression,
+        bd=0,
+        padx=20,
+        pady=5,
+        activebackground=COLOR_VALIDER_INACTIF,
+    )
+    bouton_valider.place(x=VACANCES_CENTER_X, y=705, anchor="center")
+
+    lb_periodes.bind("<<ListboxSelect>>", on_click_periodes)
+    lb_feries.bind("<<ListboxSelect>>", on_click_feries)
+    lb_periodes.bind("<MouseWheel>", lambda event: scroll_listbox(lb_periodes, event))
+    lb_feries.bind("<MouseWheel>", lambda event: scroll_listbox(lb_feries, event))
+
+    recharger_listes()
+
+
+def afficher_onglet_profil(fenetre, profil_selectionne=None, on_profil_click=None, on_profil_back=None):
+    """Affiche la liste des profils ou le détail d'un profil sélectionné."""
+    if profil_selectionne and profil_selectionne in profils:
+        afficher_onglet_profil_detail(fenetre, profil_selectionne, on_profil_back=on_profil_back)
+        return
+
+    # Liste des profils
+    zone_x = (BODY_WIDTH - 440) // 2 + 20
+    zone_y = 365
+    zone_w = 440
+    zone_h = 365
+
+    _placer_titre_section(
+        fenetre,
+        "img/label_nav_dynanim.png",
+        325,
+        "LISTE DES PROFILS",
+        bg=COLOR_NAV_TEXT_BG,
+    )
+
+    canvas = Canvas(fenetre, bg=COLOR_BODY_BG, highlightthickness=0)
+    canvas.place(x=zone_x, y=zone_y, width=zone_w, height=zone_h)
+
+    scrollbar = Scrollbar(fenetre, orient="vertical", command=canvas.yview)
+    scrollbar.place(x=zone_x + zone_w, y=zone_y, height=zone_h)
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    contenu = Frame(canvas, bg=COLOR_BODY_BG)
+    canvas_window = canvas.create_window((0, 0), window=contenu, anchor="nw")
+
+    noms = sorted(profils.keys())
+    if not noms:
+        Label(
+            contenu,
+            text="Aucun profil enregistré",
+            font=("Comic Sans MS", 12, "italic"),
+            fg="#1B4332",
+            bg=COLOR_BODY_BG,
+        ).pack(anchor="w", padx=10, pady=6)
+    else:
+        for nom in noms:
+            label_profil = Label(
+                contenu,
+                text=nom,
+                font=("Comic Sans MS", 15, "bold"),
+                fg="#1B4332",
+                bg=COLOR_BODY_BG,
+                anchor="w",
+                justify="left",
+                cursor="hand2",
+            )
+            label_profil.pack(fill="x", padx=10, pady=4)
+            if on_profil_click:
+                label_profil.bind("<Button-1>", lambda _e, n=nom: on_profil_click(n))
+
+    def refresh_scroll_region(_event=None):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+
+    def ajuster_largeur_contenu(event):
+        canvas.itemconfigure(canvas_window, width=event.width)
+
+    def on_mousewheel(event):
+        canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+        return "break"
+
+    contenu.bind("<Configure>", refresh_scroll_region)
+    canvas.bind("<Configure>", ajuster_largeur_contenu)
+    canvas.bind("<MouseWheel>", on_mousewheel)
+    contenu.bind("<MouseWheel>", on_mousewheel)
+
+
+def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
+    """Affiche une interface récapitulative d'un profil."""
+    profil = profils.get(nom_profil)
+    if not profil:
+        return
+
+    _placer_titre_section(
+        fenetre,
+        "img/label_nav_dynanim.png",
+        318,
+        nom_profil,
+        bg=COLOR_NAV_TEXT_BG,
+    )
+
+    label_retour_liste = Label(
+        fenetre,
+        text="← Retour à la liste",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+        cursor="hand2",
+    )
+    label_retour_liste.place(x=105, y=327)
+    if on_profil_back:
+        label_retour_liste.bind("<Button-1>", lambda _e: on_profil_back())
+
+    xp = calculer_xp_globale_profil(profil, periodes)
+    engagement = calculer_score_engagement_profil(profil, periodes)
+    progression = infos_progression_niveau(xp)
+
+    # Place l'image d'étoiles à 10 px à droite du titre profil.
+    titre_font = tkfont.Font(family="Comic Sans MS", size=12, weight="bold")
+    titre_width = titre_font.measure(nom_profil) + 40
+    titre_right = VACANCES_CENTER_X + titre_width // 2
+
+    photo_etoiles = _charger_photo(engagement["image_etoiles"], (200, 45))
+    label_etoiles = _creer_label_image(fenetre, photo_etoiles, bd=0, highlightthickness=0, bg="#D8F3DC")
+    label_etoiles.place(x=titre_right + 10, y=311)
+
+    Label(
+        fenetre,
+        text=f"Niveau: {progression['niveau']}   |   XP actuelle nette: {xp}",
+        font=("Comic Sans MS", 14, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=372, anchor="center")
+
+    Label(
+        fenetre,
+        text=f"Prochain palier: {progression['xp_palier_suivant']} XP (reste {progression['reste']})",
+        font=("Comic Sans MS", 11),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=397, anchor="center")
+
+    photo_progress = _charger_photo(progression["image_progression"], (73, 73))
+    label_progress = _creer_label_image(fenetre, photo_progress, bd=0, highlightthickness=0, bg="#D8F3DC")
+    label_progress.place(x=350, y=445, anchor="center")
+
+    Label(
+        fenetre,
+        text=f"Progression vers niveau suivant: {progression['pourcentage']}%",
+        font=("Comic Sans MS", 10, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=495, anchor="center")
+
+    Label(
+        fenetre,
+        text="Récapitulatif par période (semaine type)",
+        font=("Comic Sans MS", 12, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=520, anchor="center")
+
+    y = 550
+    for periode in PERIODES_SCOLAIRES:
+        points_semaine = points_semaine_type_periode(profil, periode)
+        note_lettre = "Non compté"
+        note_image = None
+        if points_semaine > 0:
+            note_lettre, note_image = note_depuis_points_semaine(points_semaine)
+
+        Label(
+            fenetre,
+            text=f"{periode.upper()}  |  Semaine type: {points_semaine} pts  |  {note_lettre if note_lettre == 'Non compté' else 'Note ' + note_lettre}",
+            font=("Comic Sans MS", 11),
+            fg="#1B4332",
+            bg=COLOR_BODY_BG,
+            anchor="w",
+            justify="left",
+        ).place(x=160, y=y)
+
+        if note_image:
+            photo_note = _charger_photo(note_image, (55, 32))
+            label_note = _creer_label_image(fenetre, photo_note, bd=0, highlightthickness=0, bg=COLOR_BODY_BG)
+            label_note.place(x=570, y=y - 4)
+        y += 45
+
+
 def afficher_dynanim_body(
     fenetre,
     app_actif,
     dynanim_onglet_actif="ACCUEIL",
+    parametre_onglet_actif="VACANCES",
+    profil_selectionne=None,
     on_logo_click=None,
     on_retour_click=None,
     on_tab_click=None,
+    on_parametre_tab_click=None,
+    on_profil_click=None,
+    on_profil_back=None,
     on_ajout_valider=None,
     on_nom_existe=None,
+    on_vacances_valider=None,
+    on_ferie_valider=None,
+    on_parametre_mutation=None,
 ):
     label_dynanim = None
     label_retour = None
@@ -422,6 +1177,23 @@ def afficher_dynanim_body(
     if app_actif == "DYNANIM":
         if dynanim_onglet_actif == "AJOUT":
             afficher_onglet_ajout(fenetre, on_valider=on_ajout_valider, nom_existe=on_nom_existe)
+        elif dynanim_onglet_actif == "PROFILS":
+            afficher_onglet_profil(
+                fenetre,
+                profil_selectionne=profil_selectionne,
+                on_profil_click=on_profil_click,
+                on_profil_back=on_profil_back,
+            )
+
+    if app_actif == "PARAMETRE":
+        afficher_parametre_body(
+            fenetre,
+            parametre_onglet_actif=parametre_onglet_actif,
+            on_parametre_tab_click=on_parametre_tab_click,
+            on_vacances_valider=on_vacances_valider,
+            on_ferie_valider=on_ferie_valider,
+            on_parametre_mutation=on_parametre_mutation,
+        )
     # endregion
 
     return label_dynanim or label_retour
