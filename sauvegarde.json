@@ -38,44 +38,6 @@
       "projet": {},
       "niveau": 3
     },
-    "JULIEN ROBERT": {
-      "date_debut": "2025-09-21T00:00:00",
-      "activites": {
-        "p1": {
-          "lundi": "libre",
-          "mardi": "manuelle",
-          "jeudi": "sportive",
-          "vendredi": "libre"
-        },
-        "p2": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        },
-        "p3": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        },
-        "p4": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        },
-        "p5": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        }
-      },
-      "penalite": {},
-      "projet": {},
-      "niveau": 3
-    },
     "MAYA DUPONT": {
       "date_debut": "2025-09-22T00:00:00",
       "activites": {
@@ -189,6 +151,44 @@
       "penalite": {},
       "projet": {},
       "niveau": 3
+    },
+    "JULIEN ROBERTO": {
+      "date_debut": "2025-09-21T00:00:00",
+      "activites": {
+        "p1": {
+          "lundi": "libre",
+          "mardi": "manuelle",
+          "jeudi": "sportive",
+          "vendredi": "libre"
+        },
+        "p2": {
+          "lundi": "sportive",
+          "mardi": "sportive",
+          "jeudi": "libre",
+          "vendredi": "manuelle"
+        },
+        "p3": {
+          "lundi": "manuelle",
+          "mardi": "sportive",
+          "jeudi": "sportive",
+          "vendredi": "manuelle"
+        },
+        "p4": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        },
+        "p5": {
+          "lundi": "",
+          "mardi": "",
+          "jeudi": "",
+          "vendredi": ""
+        }
+      },
+      "penalite": {},
+      "projet": {},
+      "niveau": 11
     }
   },
   "periodes": {

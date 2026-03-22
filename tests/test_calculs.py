@@ -4,6 +4,7 @@ from datetime import datetime
 from calculs import (
     calculer_score_engagement_profil,
     calculer_xp_globale_profil,
+    calculer_xp_reelle_totale_profil,
     etoiles_depuis_score,
     note_depuis_points_semaine,
     points_max_theoriques_profil,
@@ -51,7 +52,8 @@ class TestCalculsProfils(unittest.TestCase):
 
     def test_engagement_baisse_avec_penalite(self):
         reference = datetime(2025, 9, 6)
-        self.profil["penalite"] = {datetime(2025, 9, 5): 3}
+        # Vendredi valait 3 points, il est forcé à 0 -> total 9.
+        self.profil["penalite"] = {datetime(2025, 9, 5): 0}
 
         score = calculer_score_engagement_profil(self.profil, self.periodes, date_reference=reference)
 
@@ -100,9 +102,27 @@ class TestCalculsProfils(unittest.TestCase):
         self.assertEqual(score["etoiles"], 1)
 
     def test_engagement_borne_a_100(self):
-        # Pénalité négative simulée -> XP nette peut dépasser le théorique, score doit rester borné à 100.
-        self.profil["penalite"] = {datetime(2025, 9, 5): -10}
+        # Override identique à la valeur de base: score reste à 100.
+        self.profil["penalite"] = {datetime(2025, 9, 5): 3}
         score = calculer_score_engagement_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
+        self.assertEqual(score["score"], 100)
+
+    def test_penalite_remplace_valeur_du_jour(self):
+        # Vendredi (3) devient 1 => total: 3 + 3 + 3 + 1 = 10.
+        self.profil["penalite"] = {datetime(2025, 9, 5): 1}
+        xp = calculer_xp_globale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
+        self.assertEqual(xp, 10)
+
+    def test_xp_reelle_inclut_points_projets(self):
+        self.profil["projet"] = {"A": 5, "B": 7}
+        xp_reelle = calculer_xp_reelle_totale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
+        self.assertEqual(xp_reelle, 24)
+
+    def test_engagement_ignore_points_projets(self):
+        self.profil["projet"] = {"A": 999}
+        score = calculer_score_engagement_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
+        self.assertEqual(score["points_actuels"], 12)
+        self.assertEqual(score["points_max"], 12)
         self.assertEqual(score["score"], 100)
 
 

@@ -99,6 +99,66 @@ def points_jour_profil(profil, periodes, date_cible, ferie_dates=None):
     return points_activite(activite_jour)
 
 
+def penalites_par_date(profil, date_fin=None):
+    """Retourne les pénalités valides normalisées au format {date: int}.
+
+    La valeur est interprétée comme un override des points du jour.
+    """
+    penalites = profil.get("penalite", {})
+    if not isinstance(penalites, dict):
+        return {}
+
+    fin = _to_date(date_fin) or date.today()
+    resultat = {}
+    for date_penalite, valeur in penalites.items():
+        d = _to_date(date_penalite)
+        if not d or d > fin:
+            continue
+        try:
+            resultat[d] = int(valeur)
+        except (TypeError, ValueError):
+            continue
+    return resultat
+
+
+def compter_jours_penalises_reels(profil, periodes):
+    """
+    Compte les jours où la pénalité réduit effectivement les points de base.
+    Un jour n'est pénalisé que si la valeur override < points de base de l'activité prévue.
+    Si la pénalité est >= aux points de base (ex: 1 pt prévu, 3 pts appliqués), ce n'est pas une pénalité.
+    """
+    penalites = profil.get("penalite", {})
+    if not isinstance(penalites, dict):
+        return 0
+
+    ferie_dates = extraire_dates_ferie(periodes)
+    count = 0
+    for date_penalite, valeur in penalites.items():
+        d = _to_date(date_penalite)
+        if not d:
+            continue
+        try:
+            val = int(valeur)
+        except (TypeError, ValueError):
+            continue
+        base = points_jour_profil(profil, periodes, d, ferie_dates=ferie_dates)
+        if val < base:
+            count += 1
+    return count
+
+
+def points_jour_effectifs_profil(profil, periodes, date_cible, ferie_dates=None, penalites_dates=None):
+    """Retourne les points effectifs du jour (activité ou override de pénalité)."""
+    cible = _to_date(date_cible)
+    if not cible:
+        return 0
+
+    points_base = points_jour_profil(profil, periodes, cible, ferie_dates=ferie_dates)
+    if penalites_dates is None:
+        penalites_dates = penalites_par_date(profil)
+    return penalites_dates.get(cible, points_base)
+
+
 def total_penalites(profil, date_fin=None):
     penalites = profil.get("penalite", {})
     if not isinstance(penalites, dict):
@@ -123,7 +183,8 @@ def calculer_xp_globale_profil(profil, periodes, date_reference=None):
     - Commence au premier jour de travail du profil.
     - S'arrête au jour precedent la date de reference (jour courant exclu).
     - Ne compte que les jours ouvrés dans une periode scolaire et non fériés.
-    - Déduit les pénalités enregistrées dans profil['penalite'].
+    - Applique les pénalités enregistrées dans profil['penalite'] en override
+      de la valeur du jour concerné.
     """
     date_debut = _to_date(profil.get("date_debut"))
     if not date_debut:
@@ -135,14 +196,19 @@ def calculer_xp_globale_profil(profil, periodes, date_reference=None):
         return 0
 
     ferie_dates = extraire_dates_ferie(periodes)
+    penalites_dates = penalites_par_date(profil, date_fin)
     total = 0
     courant = date_debut
 
     while courant <= date_fin:
-        total += points_jour_profil(profil, periodes, courant, ferie_dates=ferie_dates)
+        total += points_jour_effectifs_profil(
+            profil,
+            periodes,
+            courant,
+            ferie_dates=ferie_dates,
+            penalites_dates=penalites_dates,
+        )
         courant += timedelta(days=1)
-
-    total -= total_penalites(profil, date_fin)
     return total
 
 
@@ -171,6 +237,27 @@ def calculer_xp_brute_profil(profil, periodes, date_reference=None):
     return total
 
 
+def points_projets_profil(profil):
+    """Somme des points projets d'un profil (valeurs non numériques ignorées)."""
+    projets = profil.get("projet", {})
+    if not isinstance(projets, dict):
+        return 0
+
+    total = 0
+    for valeur in projets.values():
+        try:
+            total += int(valeur)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def calculer_xp_reelle_totale_profil(profil, periodes, date_reference=None):
+    """XP réelle totale = XP activités/pénalités + points projets."""
+    xp_activites = calculer_xp_globale_profil(profil, periodes, date_reference=date_reference)
+    return xp_activites + points_projets_profil(profil)
+
+
 def points_max_theoriques_profil(profil, periodes, date_reference=None):
     """
     Calcule les points théoriques supposés du profil (sans pénalité) entre date_debut et hier.
@@ -196,7 +283,7 @@ def etoiles_depuis_score(score_engagement):
 def calculer_score_engagement_profil(profil, periodes, date_reference=None):
     """
     Score d'engagement (%) = points actuels / points max théoriques * 100.
-    - points actuels: XP globale nette (pénalités déduites)
+    - points actuels: XP activités/pénalités (hors projets)
     - points théoriques supposés: XP brute attendue selon les activités planifiées (sans pénalité)
     """
     points_actuels = calculer_xp_globale_profil(profil, periodes, date_reference=date_reference)
@@ -242,8 +329,8 @@ def calculer_niveau_depuis_xp(xp_totale):
 
 
 def calculer_niveau_profil(profil, periodes, date_reference=None):
-    """Calcule le niveau d'un profil à partir de son XP globale."""
-    xp = calculer_xp_globale_profil(profil, periodes, date_reference=date_reference)
+    """Calcule le niveau d'un profil à partir de son XP réelle totale."""
+    xp = calculer_xp_reelle_totale_profil(profil, periodes, date_reference=date_reference)
     return calculer_niveau_depuis_xp(xp)
 
 

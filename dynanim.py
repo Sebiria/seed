@@ -6,9 +6,12 @@ import calendar
 from main import periodes, profils
 from calculs import (
     calculer_xp_globale_profil,
+    calculer_xp_reelle_totale_profil,
     calculer_score_engagement_profil,
+    compter_jours_penalises_reels,
     infos_progression_niveau,
     note_depuis_points_semaine,
+    points_projets_profil,
     points_semaine_type_periode,
 )
 
@@ -913,10 +916,25 @@ def afficher_onglet_reinitialisation(fenetre, on_mutation=None):
     recharger_listes()
 
 
-def afficher_onglet_profil(fenetre, profil_selectionne=None, on_profil_click=None, on_profil_back=None):
+def afficher_onglet_profil(
+    fenetre,
+    profil_selectionne=None,
+    on_profil_click=None,
+    on_profil_back=None,
+    on_profil_activites_valider=None,
+    on_profil_renommer=None,
+    on_nom_existe=None,
+):
     """Affiche la liste des profils ou le détail d'un profil sélectionné."""
     if profil_selectionne and profil_selectionne in profils:
-        afficher_onglet_profil_detail(fenetre, profil_selectionne, on_profil_back=on_profil_back)
+        afficher_onglet_profil_detail(
+            fenetre,
+            profil_selectionne,
+            on_profil_back=on_profil_back,
+            on_profil_activites_valider=on_profil_activites_valider,
+            on_profil_renommer=on_profil_renommer,
+            on_nom_existe=on_nom_existe,
+        )
         return
 
     # Liste des profils
@@ -984,7 +1002,14 @@ def afficher_onglet_profil(fenetre, profil_selectionne=None, on_profil_click=Non
     contenu.bind("<MouseWheel>", on_mousewheel)
 
 
-def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
+def afficher_onglet_profil_detail(
+    fenetre,
+    nom_profil,
+    on_profil_back=None,
+    on_profil_activites_valider=None,
+    on_profil_renommer=None,
+    on_nom_existe=None,
+):
     """Affiche une interface récapitulative d'un profil."""
     profil = profils.get(nom_profil)
     if not profil:
@@ -998,6 +1023,17 @@ def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
         bg=COLOR_NAV_TEXT_BG,
     )
 
+    # Titre cliquable pour éditer le nom du profil.
+    titre_click = Label(
+        fenetre,
+        text=nom_profil,
+        font=("Comic Sans MS", 12, "bold"),
+        fg="white",
+        bg=COLOR_NAV_TEXT_BG,
+        cursor="hand2",
+    )
+    titre_click.place(x=VACANCES_CENTER_X, y=335, anchor="center")
+
     label_retour_liste = Label(
         fenetre,
         text="← Retour à la liste",
@@ -1010,7 +1046,7 @@ def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
     if on_profil_back:
         label_retour_liste.bind("<Button-1>", lambda _e: on_profil_back())
 
-    xp = calculer_xp_globale_profil(profil, periodes)
+    xp = calculer_xp_reelle_totale_profil(profil, periodes)
     engagement = calculer_score_engagement_profil(profil, periodes)
     progression = infos_progression_niveau(xp)
 
@@ -1025,7 +1061,7 @@ def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
 
     Label(
         fenetre,
-        text=f"Niveau: {progression['niveau']}   |   XP actuelle nette: {xp}",
+        text=f"Niveau: {progression['niveau']}   |   XP totale réelle: {xp}",
         font=("Comic Sans MS", 14, "bold"),
         fg="#1B4332",
         bg=COLOR_BODY_BG,
@@ -1033,7 +1069,7 @@ def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
 
     Label(
         fenetre,
-        text=f"Prochain palier: {progression['xp_palier_suivant']} XP (reste {progression['reste']})",
+        text=f"Prochain palier: {progression['xp_palier_suivant']} XP",
         font=("Comic Sans MS", 11),
         fg="#1B4332",
         bg=COLOR_BODY_BG,
@@ -1043,45 +1079,363 @@ def afficher_onglet_profil_detail(fenetre, nom_profil, on_profil_back=None):
     label_progress = _creer_label_image(fenetre, photo_progress, bd=0, highlightthickness=0, bg="#D8F3DC")
     label_progress.place(x=350, y=445, anchor="center")
 
-    Label(
-        fenetre,
-        text=f"Progression vers niveau suivant: {progression['pourcentage']}%",
-        font=("Comic Sans MS", 10, "bold"),
-        fg="#1B4332",
-        bg=COLOR_BODY_BG,
-    ).place(x=350, y=495, anchor="center")
+
+    Frame(fenetre, bg="#FF7500", height=2, width=560).place(x=70, y=522)
+
+
+    projets = profil.get("projet", {})
+    if not isinstance(projets, dict):
+        projets = {}
+    nb_projets = len(projets)
+    points_projets = points_projets_profil(profil)
+
+    penalites = profil.get("penalite", {})
+    if not isinstance(penalites, dict):
+        penalites = {}
+    nb_jours_penalises = compter_jours_penalises_reels(profil, periodes)
 
     Label(
         fenetre,
-        text="Récapitulatif par période (semaine type)",
-        font=("Comic Sans MS", 12, "bold"),
+        text="Nombre de projets",
+        font=("Comic Sans MS", 11, "bold"),
         fg="#1B4332",
         bg=COLOR_BODY_BG,
-    ).place(x=350, y=520, anchor="center")
+    ).place(x=350, y=600, anchor="center")
+
+    Label(
+        fenetre,
+        text=str(nb_projets),
+        font=("Comic Sans MS", 22, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=635, anchor="center")
+
+    Label(
+        fenetre,
+        text="Points des projets",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=670, anchor="center")
+
+    Label(
+        fenetre,
+        text=str(points_projets),
+        font=("Comic Sans MS", 22, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=705, anchor="center")
+
+    Label(
+        fenetre,
+        text="Nombre de jours pénalisés",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=560, y=625, anchor="center")
+
+    Label(
+        fenetre,
+        text=str(nb_jours_penalises),
+        font=("Comic Sans MS", 28, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=560, y=680, anchor="center")
+
+    recap_x = 90
+    recap_font = ("Comic Sans MS", 11, "bold")
+    recap_font_obj = tkfont.Font(family="Comic Sans MS", size=11, weight="bold")
+
+    editeur_widgets = []
+    editeur_nom_widgets = []
+
+    def nettoyer_editeur_nom():
+        for widget in editeur_nom_widgets:
+            if widget.winfo_exists():
+                widget.destroy()
+        editeur_nom_widgets.clear()
+
+    def ouvrir_editeur_nom(_event=None):
+        nettoyer_editeur_nom()
+
+        zone_x = 220
+        zone_y = 352
+        zone_w = 260
+        zone_h = 95
+
+        photo_nom_bg = _charger_photo("img/label_nav_dynanim.png", (zone_w, zone_h))
+        label_nom_bg = _creer_label_image(fenetre, photo_nom_bg, bd=0, highlightthickness=0)
+        label_nom_bg.place(x=zone_x, y=zone_y)
+        editeur_nom_widgets.append(label_nom_bg)
+
+        label_titre_nom = Label(
+            fenetre,
+            text="Nom / Prénom",
+            font=("Comic Sans MS", 10, "bold"),
+            fg="white",
+            bg=COLOR_NAV_TEXT_BG,
+        )
+        label_titre_nom.place(x=zone_x + zone_w // 2, y=zone_y + 14, anchor="center")
+        editeur_nom_widgets.append(label_titre_nom)
+
+        var_nom = StringVar()
+        var_nom.set(nom_profil)
+        entree_nom = Entry(fenetre, textvariable=var_nom, font=("Comic Sans MS", 10), width=20)
+        entree_nom.place(x=zone_x + zone_w // 2, y=zone_y + 40, anchor="center")
+        editeur_nom_widgets.append(entree_nom)
+
+        label_erreur_nom = Label(
+            fenetre,
+            text="",
+            font=("Comic Sans MS", 9, "bold"),
+            fg="white",
+            bg=COLOR_NAV_TEXT_BG,
+        )
+        label_erreur_nom.place(x=zone_x + zone_w // 2, y=zone_y + zone_h + 8, anchor="center")
+        editeur_nom_widgets.append(label_erreur_nom)
+
+        def nom_est_valide_local(nom):
+            nom_nettoye = " ".join(str(nom or "").strip().split())
+            lettres = nom_nettoye.replace(" ", "")
+            return len(lettres) >= 3 and all(char.isalpha() or char == " " for char in nom_nettoye)
+
+        def normaliser_nom_local(nom):
+            return " ".join(str(nom or "").strip().split()).upper()
+
+        def majuscule_nom_temps_reel(*_args):
+            if getattr(fenetre, "_profil_nom_trace_lock", False):
+                return
+            saisie = var_nom.get()
+            saisie_upper = saisie.upper()
+            if saisie != saisie_upper:
+                fenetre._profil_nom_trace_lock = True
+                var_nom.set(saisie_upper)
+                fenetre._profil_nom_trace_lock = False
+
+        def annuler_nom():
+            nettoyer_editeur_nom()
+
+        def valider_nom():
+            nom_saisi = normaliser_nom_local(var_nom.get())
+
+            if not nom_est_valide_local(nom_saisi):
+                label_erreur_nom.config(text="Nom invalide (3 lettres min, lettres/espaces)")
+                return
+
+            if on_nom_existe and nom_saisi != nom_profil and on_nom_existe(nom_saisi):
+                label_erreur_nom.config(text="Ce participant existe déjà")
+                return
+
+            try:
+                if on_profil_renommer:
+                    on_profil_renommer(nom_profil, nom_saisi)
+            except ValueError as erreur:
+                if str(erreur) == "DOUBLON_PROFIL":
+                    label_erreur_nom.config(text="Ce participant existe déjà")
+                    return
+                if str(erreur) == "NOM_INVALIDE":
+                    label_erreur_nom.config(text="Nom invalide (3 lettres min, lettres/espaces)")
+                    return
+                label_erreur_nom.config(text="Impossible de modifier ce nom")
+                return
+
+            nettoyer_editeur_nom()
+
+        bouton_valider_nom = Button(
+            fenetre,
+            text="Valider",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_NAV_TEXT_BG,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=12,
+            pady=4,
+            command=valider_nom,
+        )
+        bouton_valider_nom.place(x=zone_x + 5, y=zone_y + 70, anchor="w")
+        editeur_nom_widgets.append(bouton_valider_nom)
+
+        bouton_annuler_nom = Button(
+            fenetre,
+            text="Annuler",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_VALIDER_INACTIF,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=12,
+            pady=4,
+            command=annuler_nom,
+        )
+        bouton_annuler_nom.place(x=zone_x + 105, y=zone_y + 70, anchor="w")
+        editeur_nom_widgets.append(bouton_annuler_nom)
+
+        var_nom.trace_add("write", majuscule_nom_temps_reel)
+        entree_nom.focus_set()
+
+    def nettoyer_editeur():
+        for widget in editeur_widgets:
+            if widget.winfo_exists():
+                widget.destroy()
+        editeur_widgets.clear()
+
+    def ouvrir_editeur_periode(periode, y_ligne):
+        nettoyer_editeur()
+
+        x_depart = 220
+        x_positions = [x_depart, x_depart + 110, x_depart + 220, x_depart + 330]
+        y_titres = y_ligne - 2
+        y_champs = y_ligne + 23
+
+        editeur_width = (x_positions[-1] - x_positions[0]) + 130
+        editeur_height = 84
+        editeur_x = x_positions[0] - 65
+        editeur_y = y_ligne - 22
+
+        photo_editeur_bg = _charger_photo("img/label_nav_dynanim.png", (editeur_width, editeur_height))
+        label_editeur_bg = _creer_label_image(fenetre, photo_editeur_bg, bd=0, highlightthickness=0)
+        label_editeur_bg.place(x=editeur_x, y=editeur_y)
+        editeur_widgets.append(label_editeur_bg)
+
+        activites_periode = profil.get("activites", {}).get(periode, {})
+        vars_activites = {}
+
+        for index, jour in enumerate(JOURS_ACTIVITE):
+            label_jour = Label(
+                fenetre,
+                text=jour,
+                font=("Comic Sans MS", 10, "bold"),
+                fg="white",
+                bg=COLOR_NAV_TEXT_BG,
+            )
+            label_jour.place(x=x_positions[index], y=y_titres, anchor="center")
+            editeur_widgets.append(label_jour)
+
+            var_activite = StringVar()
+            mapping_jour = {
+                "Lundi": "lundi",
+                "Mardi": "mardi",
+                "Jeudi": "jeudi",
+                "Vendredi": "vendredi",
+            }
+            valeur_initiale = activites_periode.get(mapping_jour[jour], "")
+            var_activite.set(valeur_initiale)
+            vars_activites[jour] = var_activite
+
+            opt = OptionMenu(fenetre, var_activite, "", *ACTIVITES)
+            _style_optionmenu_blanc(opt)
+            opt.config(width=10)
+            opt.place(x=x_positions[index], y=y_champs, anchor="center")
+            editeur_widgets.append(opt)
+
+        label_erreur = Label(
+            fenetre,
+            text="",
+            font=("Comic Sans MS", 9, "bold"),
+            fg="white",
+            bg=COLOR_NAV_TEXT_BG,
+        )
+        label_erreur.place(x=x_positions[1] + 70, y=y_champs + 27, anchor="center")
+        editeur_widgets.append(label_erreur)
+
+        def valider_editeur():
+            nouvelles_activites = {jour: vars_activites[jour].get().strip() for jour in JOURS_ACTIVITE}
+            if not all(nouvelles_activites.values()):
+                label_erreur.config(text="Veuillez compléter tous les champs")
+                return
+
+            label_erreur.config(text="")
+            activites_profil = profil.setdefault("activites", {})
+            activites_profil.setdefault(periode, {"lundi": "", "mardi": "", "jeudi": "", "vendredi": ""})
+
+            mapping_jour = {
+                "Lundi": "lundi",
+                "Mardi": "mardi",
+                "Jeudi": "jeudi",
+                "Vendredi": "vendredi",
+            }
+            for jour, valeur in nouvelles_activites.items():
+                activites_profil[periode][mapping_jour[jour]] = valeur
+
+            if on_profil_activites_valider:
+                on_profil_activites_valider(nom_profil, periode, nouvelles_activites)
+            nettoyer_editeur()
+
+        bouton_valider = Button(
+            fenetre,
+            text="Valider",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_NAV_TEXT_BG,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=12,
+            pady=4,
+            command=valider_editeur,
+        )
+        bouton_valider.place(x=75, y=470, anchor="w")
+        editeur_widgets.append(bouton_valider)
+
+        bouton_annuler = Button(
+            fenetre,
+            text="Annuler",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_VALIDER_INACTIF,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=12,
+            pady=4,
+            command=nettoyer_editeur,
+        )
+        bouton_annuler.place(x=75, y=500, anchor="w")
+        editeur_widgets.append(bouton_annuler)
 
     y = 550
     for periode in PERIODES_SCOLAIRES:
+        y_ligne = y
         points_semaine = points_semaine_type_periode(profil, periode)
-        note_lettre = "Non compté"
         note_image = None
+        texte_ligne = f"{periode.upper()}  |"
         if points_semaine > 0:
-            note_lettre, note_image = note_depuis_points_semaine(points_semaine)
+            _note_lettre, note_image = note_depuis_points_semaine(points_semaine)
+        else:
+            texte_ligne = f"{periode.upper()}  |  Non compté"
 
-        Label(
+        nav_width = recap_font_obj.measure(texte_ligne) + 24
+        nav_height = 28
+        photo_periode_bg = _charger_photo("img/label_nav_dynanim.png", (nav_width, nav_height))
+        label_periode_bg = _creer_label_image(
             fenetre,
-            text=f"{periode.upper()}  |  Semaine type: {points_semaine} pts  |  {note_lettre if note_lettre == 'Non compté' else 'Note ' + note_lettre}",
-            font=("Comic Sans MS", 11),
-            fg="#1B4332",
-            bg=COLOR_BODY_BG,
-            anchor="w",
-            justify="left",
-        ).place(x=160, y=y)
+            photo_periode_bg,
+            bd=0,
+            highlightthickness=0,
+            cursor="hand2",
+        )
+        label_periode_bg.place(x=recap_x, y=y_ligne - 2)
+
+        label_periode = Label(
+            fenetre,
+            text=texte_ligne,
+            font=recap_font,
+            fg="white",
+            bg=COLOR_NAV_TEXT_BG,
+            cursor="hand2",
+        )
+        label_periode.place(x=recap_x + nav_width // 2, y=y_ligne + 12, anchor="center")
+        label_periode_bg.bind("<Button-1>", lambda _e, p=periode, yl=y_ligne: ouvrir_editeur_periode(p, yl))
+        label_periode.bind("<Button-1>", lambda _e, p=periode, yl=y_ligne: ouvrir_editeur_periode(p, yl))
 
         if note_image:
             photo_note = _charger_photo(note_image, (55, 32))
             label_note = _creer_label_image(fenetre, photo_note, bd=0, highlightthickness=0, bg=COLOR_BODY_BG)
-            label_note.place(x=570, y=y - 4)
+            note_x = recap_x + nav_width + 8
+            label_note.place(x=note_x, y=y_ligne - 4)
+            label_note.bind("<Button-1>", lambda _e, p=periode, yl=y_ligne: ouvrir_editeur_periode(p, yl))
         y += 45
+
+    titre_click.bind("<Button-1>", ouvrir_editeur_nom)
 
 
 def afficher_dynanim_body(
@@ -1096,6 +1450,8 @@ def afficher_dynanim_body(
     on_parametre_tab_click=None,
     on_profil_click=None,
     on_profil_back=None,
+    on_profil_activites_valider=None,
+    on_profil_renommer=None,
     on_ajout_valider=None,
     on_nom_existe=None,
     on_vacances_valider=None,
@@ -1183,6 +1539,9 @@ def afficher_dynanim_body(
                 profil_selectionne=profil_selectionne,
                 on_profil_click=on_profil_click,
                 on_profil_back=on_profil_back,
+                on_profil_activites_valider=on_profil_activites_valider,
+                on_profil_renommer=on_profil_renommer,
+                on_nom_existe=on_nom_existe,
             )
 
     if app_actif == "PARAMETRE":

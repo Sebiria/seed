@@ -39,6 +39,12 @@ def nom_profil_existe(nom):
     return any(cle_nom(nom_existant) == nom_normalise for nom_existant in profils)
 
 
+def nom_est_valide(nom):
+    nom_normalise = " ".join(str(nom or "").strip().split())
+    lettres = nom_normalise.replace(" ", "")
+    return len(lettres) >= 3 and all(char.isalpha() or char == " " for char in nom_normalise)
+
+
 def recalculer_niveaux_profils():
     """Recalcule le niveau de tous les profils selon l'XP globale et les paliers."""
     for profil in profils.values():
@@ -67,6 +73,8 @@ def render_ui():
         on_parametre_tab_click,
         on_profil_click,
         on_profil_back,
+        on_profil_activites_valider,
+        on_profil_renommer,
         on_ajout_valider,
         nom_profil_existe,
         on_vacances_valider,
@@ -123,6 +131,55 @@ def on_profil_back():
     global profil_selectionne
     profil_selectionne = None
     update_ui()
+
+
+def on_profil_activites_valider(nom_profil, periode, activites):
+    """Met à jour la semaine type d'une période pour un profil, puis sauvegarde."""
+    profil = profils.get(nom_profil)
+    if not profil:
+        return
+
+    activites_profil = profil.setdefault("activites", {})
+    activites_profil.setdefault(periode, {jour: "" for jour in JOURS_PROFIL})
+
+    mapping_jours = {
+        "Lundi": "lundi",
+        "Mardi": "mardi",
+        "Jeudi": "jeudi",
+        "Vendredi": "vendredi",
+    }
+
+    for jour_formulaire, valeur in activites.items():
+        jour_cle = mapping_jours.get(jour_formulaire)
+        if jour_cle:
+            activites_profil[periode][jour_cle] = valeur
+
+    sauvegarder_etat(recalculer_niveaux=True)
+    update_ui()
+
+
+def on_profil_renommer(nom_actuel, nouveau_nom):
+    """Renomme un profil en appliquant les mêmes règles de validation que l'ajout."""
+    global profil_selectionne
+
+    if nom_actuel not in profils:
+        raise ValueError("PROFIL_INTROUVABLE")
+
+    nom_propre = normaliser_nom(nouveau_nom)
+    if not nom_est_valide(nom_propre):
+        raise ValueError("NOM_INVALIDE")
+
+    if cle_nom(nom_propre) != cle_nom(nom_actuel) and nom_profil_existe(nom_propre):
+        raise ValueError("DOUBLON_PROFIL")
+
+    if nom_propre == nom_actuel:
+        return nom_propre
+
+    profils[nom_propre] = profils.pop(nom_actuel)
+    profil_selectionne = nom_propre
+    sauvegarder_etat(recalculer_niveaux=True)
+    update_ui()
+    return nom_propre
 
 
 def on_parametre_tab_click(onglet):
