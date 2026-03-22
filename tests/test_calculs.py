@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 
 from calculs import (
+    calculer_repartition_types_anim_profil,
     calculer_score_engagement_profil,
     calculer_xp_globale_profil,
     calculer_xp_reelle_totale_profil,
@@ -113,8 +114,22 @@ class TestCalculsProfils(unittest.TestCase):
         xp = calculer_xp_globale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
         self.assertEqual(xp, 10)
 
+    def test_penalite_format_objet_est_prise_en_compte(self):
+        # Compatibilité avec le format {'valeur': int}.
+        self.profil["penalite"] = {datetime(2025, 9, 5): {"valeur": 1, "date": datetime(2025, 9, 5)}}
+        xp = calculer_xp_globale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
+        self.assertEqual(xp, 10)
+
     def test_xp_reelle_inclut_points_projets(self):
         self.profil["projet"] = {"A": 5, "B": 7}
+        xp_reelle = calculer_xp_reelle_totale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
+        self.assertEqual(xp_reelle, 24)
+
+    def test_xp_reelle_inclut_points_projets_format_objet(self):
+        self.profil["projet"] = {
+            "A": {"valeur": 5, "date_creation": None},
+            "B": {"valeur": 7, "date_creation": None},
+        }
         xp_reelle = calculer_xp_reelle_totale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
         self.assertEqual(xp_reelle, 24)
 
@@ -124,6 +139,44 @@ class TestCalculsProfils(unittest.TestCase):
         self.assertEqual(score["points_actuels"], 12)
         self.assertEqual(score["points_max"], 12)
         self.assertEqual(score["score"], 100)
+
+    def test_repartition_types_anim_triee_decroissante(self):
+        # Semaine type: sportive(1), manuelle(2), libre(1) => 25/50/0/25
+        self.profil["activites"]["p1"] = {
+            "lundi": "sportive",
+            "mardi": "manuelle",
+            "jeudi": "manuelle",
+            "vendredi": "libre",
+        }
+        repartition = calculer_repartition_types_anim_profil(
+            self.profil,
+            self.periodes,
+            date_reference=datetime(2025, 9, 6),
+        )
+        self.assertEqual(repartition["total_jours_activite"], 4)
+        self.assertEqual(
+            repartition["types_tries"],
+            [("manuelle", 50), ("sportive", 25), ("libre", 25), ("simple", 0)],
+        )
+
+    def test_repartition_types_anim_tous_types_meme_sous_30(self):
+        # 1 occurrence de chaque type => 25% chacun.
+        self.profil["activites"]["p1"] = {
+            "lundi": "sportive",
+            "mardi": "manuelle",
+            "jeudi": "simple",
+            "vendredi": "libre",
+        }
+        repartition = calculer_repartition_types_anim_profil(
+            self.profil,
+            self.periodes,
+            date_reference=datetime(2025, 9, 6),
+        )
+        self.assertEqual(repartition["total_jours_activite"], 4)
+        self.assertEqual(
+            repartition["types_tries"],
+            [("sportive", 25), ("manuelle", 25), ("simple", 25), ("libre", 25)],
+        )
 
 
 if __name__ == "__main__":

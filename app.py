@@ -22,6 +22,7 @@ profil_selectionne = None
 #region Fonctions utilitaires
 JOURS_PROFIL = ["lundi", "mardi", "jeudi", "vendredi"]
 PERIODES_PROFIL = ["p1", "p2", "p3", "p4", "p5"]
+MAX_NOM_PROFIL = 20
 
 
 def normaliser_nom(nom):
@@ -42,7 +43,11 @@ def nom_profil_existe(nom):
 def nom_est_valide(nom):
     nom_normalise = " ".join(str(nom or "").strip().split())
     lettres = nom_normalise.replace(" ", "")
-    return len(lettres) >= 3 and all(char.isalpha() or char == " " for char in nom_normalise)
+    return (
+        len(lettres) >= 3
+        and len(nom_normalise) <= MAX_NOM_PROFIL
+        and all(char.isalpha() or char == " " for char in nom_normalise)
+    )
 
 
 def recalculer_niveaux_profils():
@@ -80,6 +85,8 @@ def render_ui():
         on_vacances_valider,
         on_ferie_valider,
         on_parametre_mutation,
+        on_projets_valider,
+        on_penalites_valider,
     )
 
 
@@ -237,6 +244,30 @@ def on_ferie_valider(date_ferie):
 
 def on_parametre_mutation():
     """Persiste les mutations faites depuis les vues Paramètre (ex: réinitialisation)."""
+    sauvegarder_etat(recalculer_niveaux=True)
+
+
+def on_projets_valider(nom_projet, valeur, profils_selectes):
+    """Ajoute un projet à tous les profils sélectionnés."""
+    valeur_int = int(valeur)
+    for nom_profil in profils_selectes:
+        profil = profils.get(nom_profil)
+        if not profil:
+            continue
+        projets = profil.setdefault("projet", {})
+        projets[nom_projet] = {"valeur": valeur_int, "date_creation": None}
+    sauvegarder_etat(recalculer_niveaux=True)
+    update_ui()
+
+
+def on_penalites_valider(nom_profil, date_penalite, valeur):
+    """Ajoute une pénalité à un profil pour une date donnée."""
+    profil = profils.get(nom_profil)
+    if not profil:
+        return
+    penalites = profil.setdefault("penalite", {})
+    # Clé unique: datetime (attendu par les calculs et la sérialisation)
+    penalites[date_penalite] = int(valeur)
     sauvegarder_etat(recalculer_niveaux=True)
 
 

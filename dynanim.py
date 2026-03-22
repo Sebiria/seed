@@ -1,10 +1,11 @@
-from tkinter import Label, Entry, OptionMenu, StringVar, Button, Listbox, Canvas, Frame, Scrollbar
+from tkinter import Label, Entry, OptionMenu, StringVar, Button, Listbox, Canvas, Frame, Scrollbar, TclError
 from tkinter import font as tkfont
 from PIL import Image, ImageTk
 from datetime import datetime
 import calendar
 from main import periodes, profils
 from calculs import (
+    calculer_repartition_types_anim_profil,
     calculer_xp_globale_profil,
     calculer_xp_reelle_totale_profil,
     calculer_score_engagement_profil,
@@ -38,6 +39,7 @@ PARAM_TAB_LABELS = ["VACANCES", "FÉRIÉ", "RÉINITIALISATION"]
 # Constantes AJOUT
 ACTIVITES = ["sportive", "manuelle", "simple", "libre"]
 JOURS_ACTIVITE = ["Lundi", "Mardi", "Jeudi", "Vendredi"]
+MAX_NOM_PROFIL = 20
 AJOUT_FONT_LABEL = ("Comic Sans MS", 12, "bold")
 AJOUT_FONT_ENTRY = ("Comic Sans MS", 11)
 AJOUT_CENTER_X = 350
@@ -185,9 +187,13 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
     var_jour = StringVar()
 
     def nom_est_valide(nom):
-        nom = nom.strip()
+        nom = " ".join(nom.strip().split())
         lettres = nom.replace(" ", "")
-        return len(lettres) >= 3 and all(char.isalpha() or char == " " for char in nom)
+        return (
+            len(lettres) >= 3
+            and len(nom) <= MAX_NOM_PROFIL
+            and all(char.isalpha() or char == " " for char in nom)
+        )
 
     def nom_affichage(nom):
         return " ".join(nom.strip().split()).upper()
@@ -360,7 +366,9 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
         activites_vals = {j: vars_activites[j].get() for j in JOURS_ACTIVITE}
 
         if not nom_est_valide(nom):
-            afficher_erreur("⚠ Nom / Prénom invalide (3 lettres min, seulement lettres et espaces).")
+            afficher_erreur(
+                f"⚠ Nom / Prénom invalide (3 lettres min, lettres/espaces, {MAX_NOM_PROFIL} caractères max)."
+            )
             return
 
         if not nom_est_disponible(nom):
@@ -1042,7 +1050,7 @@ def afficher_onglet_profil_detail(
         bg=COLOR_BODY_BG,
         cursor="hand2",
     )
-    label_retour_liste.place(x=105, y=327)
+    label_retour_liste.place(x=15, y=327, anchor="w")
     if on_profil_back:
         label_retour_liste.bind("<Button-1>", lambda _e: on_profil_back())
 
@@ -1078,6 +1086,34 @@ def afficher_onglet_profil_detail(
     photo_progress = _charger_photo(progression["image_progression"], (73, 73))
     label_progress = _creer_label_image(fenetre, photo_progress, bd=0, highlightthickness=0, bg="#D8F3DC")
     label_progress.place(x=350, y=445, anchor="center")
+
+    repartition = calculer_repartition_types_anim_profil(profil, periodes)
+    type_anim_x = 165
+    Label(
+        fenetre,
+        text="Type d'anim",
+        font=("Comic Sans MS", 17, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=type_anim_x, y=420, anchor="center")
+
+    libelles_types = {
+        "sportive": "Sportif",
+        "manuelle": "Manuelle",
+        "simple": "Simple",
+        "libre": "Libre",
+    }
+    y_type = 442
+    for type_activite, pourcentage in repartition["types_tries"]:
+        texte = f"{libelles_types.get(type_activite, type_activite.title())} a {pourcentage}%"
+        Label(
+            fenetre,
+            text=texte,
+            font=("Comic Sans MS", 9, "bold"),
+            fg="#1B4332",
+            bg=COLOR_BODY_BG,
+        ).place(x=type_anim_x, y=y_type, anchor="center")
+        y_type += 18
 
 
     Frame(fenetre, bg="#FF7500", height=2, width=560).place(x=70, y=522)
@@ -1197,7 +1233,11 @@ def afficher_onglet_profil_detail(
         def nom_est_valide_local(nom):
             nom_nettoye = " ".join(str(nom or "").strip().split())
             lettres = nom_nettoye.replace(" ", "")
-            return len(lettres) >= 3 and all(char.isalpha() or char == " " for char in nom_nettoye)
+            return (
+                len(lettres) >= 3
+                and len(nom_nettoye) <= MAX_NOM_PROFIL
+                and all(char.isalpha() or char == " " for char in nom_nettoye)
+            )
 
         def normaliser_nom_local(nom):
             return " ".join(str(nom or "").strip().split()).upper()
@@ -1219,7 +1259,9 @@ def afficher_onglet_profil_detail(
             nom_saisi = normaliser_nom_local(var_nom.get())
 
             if not nom_est_valide_local(nom_saisi):
-                label_erreur_nom.config(text="Nom invalide (3 lettres min, lettres/espaces)")
+                label_erreur_nom.config(
+                    text=f"Nom invalide (3 lettres min, lettres/espaces, {MAX_NOM_PROFIL} max)"
+                )
                 return
 
             if on_nom_existe and nom_saisi != nom_profil and on_nom_existe(nom_saisi):
@@ -1234,7 +1276,9 @@ def afficher_onglet_profil_detail(
                     label_erreur_nom.config(text="Ce participant existe déjà")
                     return
                 if str(erreur) == "NOM_INVALIDE":
-                    label_erreur_nom.config(text="Nom invalide (3 lettres min, lettres/espaces)")
+                    label_erreur_nom.config(
+                        text=f"Nom invalide (3 lettres min, lettres/espaces, {MAX_NOM_PROFIL} max)"
+                    )
                     return
                 label_erreur_nom.config(text="Impossible de modifier ce nom")
                 return
@@ -1457,6 +1501,8 @@ def afficher_dynanim_body(
     on_vacances_valider=None,
     on_ferie_valider=None,
     on_parametre_mutation=None,
+    on_projets_valider=None,
+    on_penalites_valider=None,
 ):
     label_dynanim = None
     label_retour = None
@@ -1543,6 +1589,12 @@ def afficher_dynanim_body(
                 on_profil_renommer=on_profil_renommer,
                 on_nom_existe=on_nom_existe,
             )
+        elif dynanim_onglet_actif == "+ / -":
+            afficher_onglet_bonus_malus(
+                fenetre,
+                on_projets_valider=on_projets_valider,
+                on_penalites_valider=on_penalites_valider,
+            )
 
     if app_actif == "PARAMETRE":
         afficher_parametre_body(
@@ -1556,4 +1608,322 @@ def afficher_dynanim_body(
     # endregion
 
     return label_dynanim or label_retour
+
+
+def afficher_onglet_bonus_malus(
+    fenetre,
+    on_projets_valider=None,
+    on_penalites_valider=None,
+):
+    """Affiche l'onglet BONUS/MALUS pour gérer projets et pénalités."""
+    def _safe_set_error(label_widget, message):
+        """Evite les crashs si le callback a redessine l'UI et detruit le widget."""
+        try:
+            if label_widget and label_widget.winfo_exists():
+                label_widget.config(text=message)
+        except TclError:
+            pass
+
+    # Fonction pour calculer la taille du label_nav adapté au texte
+    def _creer_titre_avec_nav(x_center, y, texte):
+        f = tkfont.Font(family="Comic Sans MS", size=14, weight="bold")
+        texte_width = f.measure(texte) + 40  # 20px de marge de chaque côté
+        texte_height = 40
+        
+        photo_titre = _charger_photo("img/label_nav_dynanim.png", (texte_width, texte_height))
+        label_nav_bg = _creer_label_image(fenetre, photo_titre, bd=0, highlightthickness=0)
+        label_nav_bg.place(x=x_center - texte_width // 2, y=y)
+        
+        Label(
+            fenetre,
+            text=texte,
+            font=("Comic Sans MS", 14, "bold"),
+            fg="white",
+            bg="#FF7500",
+        ).place(x=x_center, y=y + 20, anchor="center")
+    
+    # region Projets
+    # Titre PROJETS avec label_nav adapté
+    _creer_titre_avec_nav(150, 320, "PROJETS")
+
+    Label(
+        fenetre,
+        text="Nom du projet:",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=150, y=380, anchor="center")
+
+    var_projet_nom = StringVar()
+    entry_projet_nom = Entry(fenetre, textvariable=var_projet_nom, font=("Comic Sans MS", 10), width=20)
+    entry_projet_nom.place(x=150, y=405, anchor="center")
+
+    Label(
+        fenetre,
+        text="Valeur:",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=150, y=435, anchor="center")
+
+    var_projet_valeur = StringVar()
+    var_projet_valeur.set("10")
+    opt_projet_valeur = OptionMenu(fenetre, var_projet_valeur, "10", "20", "30")
+    opt_projet_valeur.place(x=150, y=465, anchor="center")
+
+    Label(
+        fenetre,
+        text="Profils:",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=150, y=500, anchor="center")
+
+    noms_profils = sorted(profils.keys())
+    profils_selectionnes = set()
+    labels_profils = {}
+
+    def rafraichir_style_profil(nom):
+        label = labels_profils.get(nom)
+        if not label:
+            return
+        try:
+            if not label.winfo_exists():
+                return
+            if nom in profils_selectionnes:
+                label.config(bg="#FF7500", fg="white")
+            else:
+                label.config(bg=COLOR_BODY_BG, fg="#1B4332")
+        except TclError:
+            pass
+
+    def toggle_profil(nom):
+        if nom in profils_selectionnes:
+            profils_selectionnes.remove(nom)
+        else:
+            profils_selectionnes.add(nom)
+        rafraichir_style_profil(nom)
+
+    y_depart_profils = 525
+    ecart_profils = 26
+    for index, nom in enumerate(noms_profils):
+        label_profil = Label(
+            fenetre,
+            text=nom,
+            font=("Comic Sans MS", 10),
+            fg="#1B4332",
+            bg=COLOR_BODY_BG,
+            cursor="hand2",
+        )
+        label_profil.place(x=150, y=y_depart_profils + index * ecart_profils, anchor="center")
+        label_profil.bind("<Button-1>", lambda _e, n=nom: toggle_profil(n))
+        labels_profils[nom] = label_profil
+
+    def valider_projets():
+        nom = var_projet_nom.get().strip()
+        if not nom:
+            _safe_set_error(label_erreur_projet, "⚠ Saisir un nom de projet")
+            return
+        if len(nom) < 3 or len(nom) > 20:
+            _safe_set_error(label_erreur_projet, "⚠ Nom projet: 3 a 20 caracteres")
+            return
+        valeur = var_projet_valeur.get()
+        profils_selectes = [nom_profil for nom_profil in noms_profils if nom_profil in profils_selectionnes]
+        if not profils_selectes:
+            _safe_set_error(label_erreur_projet, "⚠ Selectionner au moins un profil")
+            return
+        try:
+            if on_projets_valider:
+                on_projets_valider(nom, valeur, profils_selectes)
+        except Exception:
+            _safe_set_error(label_erreur_projet, "⚠ Impossible d'enregistrer le projet")
+            return
+        _safe_set_error(label_erreur_projet, "")
+        try:
+            if entry_projet_nom.winfo_exists():
+                var_projet_nom.set("")
+            profils_selectionnes.clear()
+            for nom_profil in noms_profils:
+                rafraichir_style_profil(nom_profil)
+        except TclError:
+            pass
+
+    Button(
+        fenetre,
+        text="Valider Projets",
+        font=("Comic Sans MS", 11, "bold"),
+        bg="#FF7500",
+        fg="white",
+        cursor="hand2",
+        command=valider_projets,
+    ).place(x=150, y=690, anchor="center")
+
+    label_erreur_projet = Label(
+        fenetre,
+        text="",
+        font=("Comic Sans MS", 9, "bold"),
+        fg="red",
+        bg=COLOR_BODY_BG,
+    )
+    label_erreur_projet.place(x=150, y=730, anchor="center")
+    # endregion
+
+    # region Pénalités
+    # Titre PÉNALITÉS avec label_nav adapté
+    _creer_titre_avec_nav(450, 320, "PÉNALITÉS")
+
+    Label(
+        fenetre,
+        text="Profil:",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=450, y=380, anchor="center")
+
+    var_penalite_profil = StringVar()
+    opt_penalite_profil = OptionMenu(fenetre, var_penalite_profil, *noms_profils)
+    opt_penalite_profil.place(x=450, y=405, anchor="center")
+
+    Label(
+        fenetre,
+        text="Date:",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=450, y=435, anchor="center")
+
+    annee_actuelle = datetime.now().year
+    annees_list = [str(annee_actuelle - 1), str(annee_actuelle), str(annee_actuelle + 1)]
+    mois_list = ["01-Janvier", "02-Février", "03-Mars", "04-Avril", "05-Mai", "06-Juin",
+                 "07-Juillet", "08-Août", "09-Septembre", "10-Octobre", "11-Novembre", "12-Décembre"]
+
+    var_penalite_annee = StringVar()
+    var_penalite_annee.set(str(annee_actuelle))
+    var_penalite_mois = StringVar()
+    var_penalite_jour = StringVar()
+
+    opt_annee = OptionMenu(fenetre, var_penalite_annee, *annees_list)
+    _style_optionmenu_blanc(opt_annee)
+    opt_annee.config(width=6)
+    opt_annee.place(x=350, y=465, anchor="center")
+
+    opt_mois = OptionMenu(fenetre, var_penalite_mois, *mois_list)
+    _style_optionmenu_blanc(opt_mois)
+    opt_mois.config(width=12)
+    opt_mois.place(x=465, y=465, anchor="center")
+
+    opt_jour = OptionMenu(fenetre, var_penalite_jour, "")
+    _style_optionmenu_blanc(opt_jour)
+    opt_jour.config(width=4)
+    opt_jour.place(x=575, y=465, anchor="center")
+
+    def mettre_a_jour_jours_penalite(*_args):
+        annee_str = var_penalite_annee.get().strip()
+        mois_str = var_penalite_mois.get().strip()
+        opt_jour["menu"].delete(0, "end")
+
+        # Le jour est toujours réinitialisé quand année/mois change.
+        var_penalite_jour.set("")
+
+        if not annee_str or not mois_str:
+            return
+
+        try:
+            mois_int = int(mois_str.split("-")[0])
+            nb_jours = calendar.monthrange(int(annee_str), mois_int)[1]
+        except (ValueError, IndexError):
+            return
+
+        for i in range(1, nb_jours + 1):
+            jour_str = f"{i:02d}"
+            opt_jour["menu"].add_command(label=jour_str, command=lambda j=jour_str: var_penalite_jour.set(j))
+
+    var_penalite_annee.trace_add("write", mettre_a_jour_jours_penalite)
+    var_penalite_mois.trace_add("write", mettre_a_jour_jours_penalite)
+
+    Label(
+        fenetre,
+        text="Valeur (points):",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=450, y=500, anchor="center")
+
+    var_penalite_valeur = StringVar()
+    var_penalite_valeur.set("0")
+    opt_penalite_valeur = OptionMenu(fenetre, var_penalite_valeur, "0", "1", "2", "3")
+    opt_penalite_valeur.place(x=450, y=530, anchor="center")
+
+    def _set_message_penalite(message, color="red", ttl_ms=None):
+        try:
+            if not label_message_penalite.winfo_exists():
+                return
+            label_message_penalite.config(text=message, fg=color)
+            ancien_after = getattr(fenetre, "_penalite_msg_after_id", None)
+            if ancien_after:
+                try:
+                    fenetre.after_cancel(ancien_after)
+                except TclError:
+                    pass
+                fenetre._penalite_msg_after_id = None
+
+            if ttl_ms:
+                fenetre._penalite_msg_after_id = fenetre.after(
+                    ttl_ms,
+                    lambda: _safe_set_error(label_message_penalite, ""),
+                )
+        except TclError:
+            pass
+
+    def valider_penalites():
+        profil_nom = var_penalite_profil.get()
+        if not profil_nom:
+            _set_message_penalite("⚠ Sélectionner un profil", "red")
+            return
+        annee = var_penalite_annee.get()
+        mois_str = var_penalite_mois.get()
+        jour = var_penalite_jour.get()
+        if not annee or not mois_str or not jour:
+            _set_message_penalite("⚠ Date incomplète", "red")
+            return
+        try:
+            mois = int(mois_str.split("-")[0])
+            date_penalite = datetime(int(annee), mois, int(jour))
+        except ValueError:
+            _set_message_penalite("⚠ Date invalide", "red")
+            return
+        valeur = int(var_penalite_valeur.get())
+        if on_penalites_valider:
+            on_penalites_valider(profil_nom, date_penalite, valeur)
+
+        try:
+            var_penalite_profil.set("")
+            var_penalite_annee.set(str(annee_actuelle))
+            var_penalite_mois.set("")
+            var_penalite_jour.set("")
+            var_penalite_valeur.set("0")
+        except TclError:
+            pass
+        _set_message_penalite("Pénalité enregistrée", "#1B4332", ttl_ms=5000)
+
+    Button(
+        fenetre,
+        text="Valider Pénalité",
+        font=("Comic Sans MS", 11, "bold"),
+        bg="#FF7500",
+        fg="white",
+        cursor="hand2",
+        command=valider_penalites,
+    ).place(x=450, y=690, anchor="center")
+
+    label_message_penalite = Label(
+        fenetre,
+        text="",
+        font=("Comic Sans MS", 9, "bold"),
+        fg="red",
+        bg=COLOR_BODY_BG,
+    )
+    label_message_penalite.place(x=450, y=730, anchor="center")
+    # endregion
+
 

@@ -65,6 +65,73 @@ def points_activite(activite):
     return ACTIVITE_POINTS.get(activite.strip().lower(), 0)
 
 
+def calculer_repartition_types_anim_profil(profil, periodes, date_reference=None):
+    """
+    Calcule la répartition des types d'activités sur les jours réellement comptés.
+    - Fenêtre: de date_debut à hier (date_reference exclue)
+    - Jours comptés: mêmes règles que l'XP (ouvrés, en période, non fériés)
+    - Dénominateur: uniquement les jours avec activité renseignée
+    """
+    date_debut = _to_date(profil.get("date_debut"))
+    if not date_debut:
+        return {
+            "total_jours_activite": 0,
+            "pourcentages": {cle: 0 for cle in ACTIVITE_POINTS},
+            "types_tries": [("sportive", 0), ("manuelle", 0), ("simple", 0), ("libre", 0)],
+        }
+
+    reference = _to_date(date_reference) or date.today()
+    date_fin = reference - timedelta(days=1)
+    if date_fin < date_debut:
+        return {
+            "total_jours_activite": 0,
+            "pourcentages": {cle: 0 for cle in ACTIVITE_POINTS},
+            "types_tries": [("sportive", 0), ("manuelle", 0), ("simple", 0), ("libre", 0)],
+        }
+
+    compteurs = {cle: 0 for cle in ACTIVITE_POINTS}
+    total = 0
+    ferie_dates = extraire_dates_ferie(periodes)
+    courant = date_debut
+    activites = profil.get("activites", {})
+
+    while courant <= date_fin:
+        if est_jour_travail_compte(courant, periodes, ferie_dates=ferie_dates):
+            cle_periode = trouver_periode_pour_date(courant, periodes)
+            if cle_periode:
+                cle_jour = JOURS_TRAVAIL[courant.weekday()]
+                activite = activites.get(cle_periode, {}).get(cle_jour, "")
+                if isinstance(activite, str):
+                    activite = activite.strip().lower()
+                else:
+                    activite = ""
+                if activite in compteurs:
+                    compteurs[activite] += 1
+                    total += 1
+        courant += timedelta(days=1)
+
+    if total == 0:
+        pourcentages = {cle: 0 for cle in compteurs}
+    else:
+        pourcentages = {
+            cle: int(round((valeur / total) * 100))
+            for cle, valeur in compteurs.items()
+        }
+
+    ordre = ["sportive", "manuelle", "simple", "libre"]
+    index_ordre = {cle: idx for idx, cle in enumerate(ordre)}
+    types_tries = sorted(
+        [(cle, pourcentages.get(cle, 0)) for cle in ordre],
+        key=lambda item: (-item[1], index_ordre[item[0]]),
+    )
+
+    return {
+        "total_jours_activite": total,
+        "pourcentages": pourcentages,
+        "types_tries": types_tries,
+    }
+
+
 def est_jour_travail_compte(date_cible, periodes, ferie_dates=None):
     cible = _to_date(date_cible)
     if not cible:
@@ -114,6 +181,8 @@ def penalites_par_date(profil, date_fin=None):
         d = _to_date(date_penalite)
         if not d or d > fin:
             continue
+        if isinstance(valeur, dict):
+            valeur = valeur.get("valeur")
         try:
             resultat[d] = int(valeur)
         except (TypeError, ValueError):
@@ -137,6 +206,8 @@ def compter_jours_penalises_reels(profil, periodes):
         d = _to_date(date_penalite)
         if not d:
             continue
+        if isinstance(valeur, dict):
+            valeur = valeur.get("valeur")
         try:
             val = int(valeur)
         except (TypeError, ValueError):
@@ -170,6 +241,8 @@ def total_penalites(profil, date_fin=None):
         d = _to_date(date_penalite)
         if not d or d > fin:
             continue
+        if isinstance(valeur, dict):
+            valeur = valeur.get("valeur")
         try:
             total += int(valeur)
         except (TypeError, ValueError):
@@ -238,13 +311,15 @@ def calculer_xp_brute_profil(profil, periodes, date_reference=None):
 
 
 def points_projets_profil(profil):
-    """Somme des points projets d'un profil (valeurs non numériques ignorées)."""
+    """Somme des points projets d'un profil (format dict ou scalaire, invalide ignore)."""
     projets = profil.get("projet", {})
     if not isinstance(projets, dict):
         return 0
 
     total = 0
     for valeur in projets.values():
+        if isinstance(valeur, dict):
+            valeur = valeur.get("valeur")
         try:
             total += int(valeur)
         except (TypeError, ValueError):
