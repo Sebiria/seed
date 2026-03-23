@@ -1,7 +1,7 @@
 from datetime import datetime
 from tkinter import Label, TclError
 from PIL import Image, ImageTk
-from main import annee_scolaire_propre, date_du_jour_propre
+from main import date_du_jour_propre
 
 # Constantes UI (tailles / positions)
 HEADER_BG_SIZE = (700, 200)
@@ -52,6 +52,21 @@ def _creer_label_image(fenetre, photo, **kwargs):
     label.image = photo
     return label
 
+
+def _annee_scolaire_depuis_periodes(periodes):
+    """Construit l'année scolaire au format AAAA-AAAA depuis p1 et p5."""
+    p1 = periodes.get("p1", []) if isinstance(periodes, dict) else []
+    p5 = periodes.get("p5", []) if isinstance(periodes, dict) else []
+    if not (isinstance(p1, list) and p1 and isinstance(p5, list) and p5):
+        return "à définir"
+
+    debut_p1 = p1[0]
+    debut_p5 = p5[0]
+    if not isinstance(debut_p1, datetime) or not isinstance(debut_p5, datetime):
+        return "à définir"
+
+    return f"{debut_p1.year}-{debut_p5.year}"
+
 def afficher_header(fenetre):
     # Background du header
     photo = _charger_photo(IMG_HEADER_BG, HEADER_BG_SIZE)
@@ -80,7 +95,7 @@ def afficher_header(fenetre):
 
     return label_image, label_body, label_logo_le_mans, label_logo_seed
 
-def afficher_info_header(fenetre, app_actif, on_parametre_click=None):
+def afficher_info_header(fenetre, app_actif, periodes, on_parametre_click=None):
     #region Date du jour
     # BACKGROUND
     photo_info = _charger_photo(IMG_LABEL_INFO, LABEL_INFO_DATE_SIZE)
@@ -149,7 +164,7 @@ def afficher_info_header(fenetre, app_actif, on_parametre_click=None):
     # VALEUR
     label_annee_valeur = Label(
         fenetre,
-        text=annee_scolaire_propre,
+        text=_annee_scolaire_depuis_periodes(periodes),
         font=("Comic Sans MS", 12),
         fg="white",
         bg=COLOR_LABEL_TEXT_BG,

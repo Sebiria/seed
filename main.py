@@ -15,9 +15,6 @@ date_du_jour_propre = f"{jours_semaine[date_du_jour.weekday()]} {date_du_jour.da
 _heure_actuelle_propre = f"{date_du_jour.hour}H{date_du_jour.minute:02d}"
 #endregion
 
-#region Année scolaire actuelle
-annee_scolaire_propre = "2026-2027"
-#endregion
 
 #endregion
 

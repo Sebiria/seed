@@ -65,7 +65,7 @@ def sauvegarder_etat(recalculer_niveaux=False):
 
 def render_ui():
     afficher_header(fenetre)
-    afficher_info_header(fenetre, app_actif, on_parametre_click)
+    afficher_info_header(fenetre, app_actif, periodes, on_parametre_click)
     afficher_dynanim_body(
         fenetre,
         app_actif,

@@ -326,10 +326,16 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
     def annuler_disparition_message():
         after_id = getattr(fenetre, "_ajout_message_after_id", None)
         if after_id:
-            fenetre.after_cancel(after_id)
+            try:
+                fenetre.after_cancel(after_id)
+            except TclError:
+                pass
             fenetre._ajout_message_after_id = None
 
     def masquer_message():
+        if not label_erreur.winfo_exists():
+            fenetre._ajout_message_after_id = None
+            return
         label_erreur.config(text="")
         fenetre._ajout_message_after_id = None
 
@@ -488,10 +494,16 @@ def afficher_onglet_vacances(fenetre, on_valider=None):
     def annuler_disparition_message():
         after_id = getattr(fenetre, "_vacances_message_after_id", None)
         if after_id:
-            fenetre.after_cancel(after_id)
+            try:
+                fenetre.after_cancel(after_id)
+            except TclError:
+                pass
             fenetre._vacances_message_after_id = None
 
     def masquer_message():
+        if not label_message.winfo_exists():
+            fenetre._vacances_message_after_id = None
+            return
         label_message.config(text="")
         fenetre._vacances_message_after_id = None
 
@@ -665,10 +677,16 @@ def afficher_onglet_ferie(fenetre, on_valider=None):
     def annuler_disparition_message():
         after_id = getattr(fenetre, "_ferie_message_after_id", None)
         if after_id:
-            fenetre.after_cancel(after_id)
+            try:
+                fenetre.after_cancel(after_id)
+            except TclError:
+                pass
             fenetre._ferie_message_after_id = None
 
     def masquer_message():
+        if not label_message.winfo_exists():
+            fenetre._ferie_message_after_id = None
+            return
         label_message.config(text="")
         fenetre._ferie_message_after_id = None
 
@@ -799,12 +817,23 @@ def afficher_onglet_reinitialisation(fenetre, on_mutation=None):
     def annuler_disparition_message():
         after_id = getattr(fenetre, "_reset_message_after_id", None)
         if after_id:
-            fenetre.after_cancel(after_id)
+            try:
+                fenetre.after_cancel(after_id)
+            except TclError:
+                pass
             fenetre._reset_message_after_id = None
 
     def masquer_message():
+        if not label_message.winfo_exists():
+            fenetre._reset_message_after_id = None
+            return
         label_message.config(text="")
         fenetre._reset_message_after_id = None
+
+    def afficher_message(message, fg, font):
+        annuler_disparition_message()
+        label_message.config(text=message, fg=fg, bg=COLOR_BODY_BG, font=font)
+        fenetre._reset_message_after_id = fenetre.after(5000, masquer_message)
 
     def maj_bouton():
         actif = bool(red_periodes or red_feries)
@@ -830,7 +859,9 @@ def afficher_onglet_reinitialisation(fenetre, on_mutation=None):
             mettre_couleur_ligne(lb_periodes, idx, False)
 
         lb_feries.delete(0, "end")
-        ferie_values = list(periodes.get("ferie", []))
+        ferie_values = sorted(
+            [d for d in periodes.get("ferie", []) if isinstance(d, datetime)]
+        )
         if ferie_values:
             for idx, date_ferie in enumerate(ferie_values):
                 lb_feries.insert("end", formater_date(date_ferie))
@@ -877,6 +908,11 @@ def afficher_onglet_reinitialisation(fenetre, on_mutation=None):
 
     def valider_suppression():
         if not red_periodes and not red_feries:
+            afficher_message(
+                "⚠ Sélectionnez au moins une période ou un jour férié à supprimer.",
+                "red",
+                ("Comic Sans MS", 10, "bold", "italic"),
+            )
             return
 
         periodes_supprimees = 0
@@ -896,10 +932,11 @@ def afficher_onglet_reinitialisation(fenetre, on_mutation=None):
             on_mutation()
 
         recharger_listes()
-        label_message.config(
-            text=f"Suppression effectuée: {periodes_supprimees} période(s), {feries_supprimes} férié(s)."
+        afficher_message(
+            f"Suppression effectuée: {periodes_supprimees} période(s), {feries_supprimes} férié(s).",
+            "#2E7D32",
+            ("Comic Sans MS", 11, "bold"),
         )
-        fenetre._reset_message_after_id = fenetre.after(5000, masquer_message)
 
     bouton_valider = Button(
         fenetre,
@@ -1482,6 +1519,240 @@ def afficher_onglet_profil_detail(
     titre_click.bind("<Button-1>", ouvrir_editeur_nom)
 
 
+def afficher_onglet_stats(fenetre, on_profil_click=None):
+    """Affiche des stats dynamiques selon des critères activables/désactivables."""
+    stats = []
+    for nom, profil in profils.items():
+        xp_activites = calculer_xp_globale_profil(profil, periodes)
+        xp_totale = calculer_xp_reelle_totale_profil(profil, periodes)
+        engagement = calculer_score_engagement_profil(profil, periodes).get("score", 0)
+        projets_points = points_projets_profil(profil)
+        jours_penalises = compter_jours_penalises_reels(profil, periodes)
+        niveau = infos_progression_niveau(xp_totale).get("niveau", 1)
+        stats.append(
+            {
+                "nom": nom,
+                "niveau": int(niveau),
+                "xp_activites": int(xp_activites),
+                "xp_totale": int(xp_totale),
+                "engagement": int(engagement),
+                "projets": int(projets_points),
+                "penalises": int(jours_penalises),
+            }
+        )
+
+    Label(
+        fenetre,
+        text="FILTRES (clique pour activer/désactiver)",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=330, anchor="center")
+
+    canvas = Canvas(fenetre, bg=COLOR_BODY_BG, highlightthickness=0)
+    canvas.place(x=40, y=485, width=620, height=240)
+
+    scrollbar = Scrollbar(fenetre, orient="vertical", command=canvas.yview)
+    scrollbar.place(x=660, y=485, height=240)
+
+    scrollbar_x = Scrollbar(fenetre, orient="horizontal", command=canvas.xview)
+    scrollbar_x.place(x=40, y=725, width=620)
+
+    canvas.configure(yscrollcommand=scrollbar.set, xscrollcommand=scrollbar_x.set)
+
+    zone_table = Frame(canvas, bg=COLOR_BODY_BG)
+    canvas_window = canvas.create_window((0, 0), window=zone_table, anchor="nw")
+
+    def ajuster_scroll(_event=None):
+        zone_table.update_idletasks()
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        largeur_requise = zone_table.winfo_reqwidth()
+        canvas.itemconfigure(canvas_window, width=largeur_requise if largeur_requise > 620 else 620)
+
+    zone_table.bind("<Configure>", ajuster_scroll)
+    canvas.bind("<MouseWheel>", lambda event: (canvas.yview_scroll(-1 * int(event.delta / 120), "units"), "break")[1])
+
+    filtres = {
+        "ENGAGEMENT >= 90%": lambda s: s["engagement"] >= 90,
+        "NIVEAU >= 5": lambda s: s["niveau"] >= 5,
+        "XP TOTALE >= 100": lambda s: s["xp_totale"] >= 100,
+        "AVEC PROJETS": lambda s: s["projets"] > 0,
+        "JOURS PENALISES > 0": lambda s: s["penalises"] > 0,
+    }
+    filtres_actifs = set()
+
+    colonnes = [
+        ("niveau", "Niveau"),
+        ("xp_activites", "XP activ."),
+        ("xp_totale", "XP totale"),
+        ("engagement", "Engagement"),
+        ("projets", "Pts projets"),
+        ("penalises", "Jours pénalisés"),
+    ]
+    colonnes_visibles = {cle for cle, _ in colonnes}
+
+    puces_filtres = {}
+    puces_colonnes = {}
+
+    def style_puce(label, active, couleur_on="#FF7500"):
+        if active:
+            label.config(bg=couleur_on, fg="white")
+        else:
+            label.config(bg=COLOR_BODY_BG, fg="#1B4332")
+
+    def lignes_filtrees():
+        lignes = list(stats)
+        for nom_filtre in filtres_actifs:
+            lignes = [ligne for ligne in lignes if filtres[nom_filtre](ligne)]
+        lignes.sort(key=lambda item: (-item["xp_totale"], item["nom"]))
+        return lignes
+
+    def rendre_tableau():
+        for widget in zone_table.winfo_children():
+            widget.destroy()
+
+        lignes = lignes_filtrees()
+        meilleurs_par_colonne = {}
+        for cle, _lib in colonnes:
+            if cle not in colonnes_visibles or not lignes:
+                continue
+            meilleurs_par_colonne[cle] = max(ligne[cle] for ligne in lignes)
+
+        entetes = ["Profil"] + [lib for cle, lib in colonnes if cle in colonnes_visibles]
+        for col, entete in enumerate(entetes):
+            Label(
+                zone_table,
+                text=entete,
+                font=("Comic Sans MS", 10, "bold"),
+                fg="white",
+                bg="#1B4332",
+                padx=8,
+                pady=4,
+            ).grid(row=0, column=col, sticky="nsew", padx=1, pady=1)
+
+        if not lignes:
+            Label(
+                zone_table,
+                text="Aucune donnée à afficher",
+                font=("Comic Sans MS", 11, "italic"),
+                fg="#1B4332",
+                bg=COLOR_BODY_BG,
+                pady=10,
+            ).grid(row=1, column=0, columnspan=max(1, len(entetes)), sticky="w")
+            ajuster_scroll()
+            return
+
+        for row_index, ligne in enumerate(lignes, start=1):
+            label_nom = Label(
+                zone_table,
+                text=ligne["nom"],
+                font=("Comic Sans MS", 10, "bold"),
+                fg="#1B4332",
+                bg="white",
+                padx=8,
+                pady=3,
+                anchor="w",
+                cursor="hand2" if on_profil_click else "",
+            )
+            label_nom.grid(row=row_index, column=0, sticky="nsew", padx=1, pady=1)
+            if on_profil_click:
+                label_nom.bind("<Button-1>", lambda _e, n=ligne["nom"]: on_profil_click(n))
+
+            col_index = 1
+            for cle, _lib in colonnes:
+                if cle not in colonnes_visibles:
+                    continue
+                valeur = f"{ligne[cle]}%" if cle == "engagement" else str(ligne[cle])
+                est_meilleur = ligne[cle] == meilleurs_par_colonne.get(cle)
+                if est_meilleur:
+                    couleur_fond = "#F3C6C6" if cle == "penalises" else "#D8F3DC"
+                else:
+                    couleur_fond = "white"
+                Label(
+                    zone_table,
+                    text=valeur,
+                    font=("Comic Sans MS", 10),
+                    fg="#1B4332",
+                    bg=couleur_fond,
+                    padx=8,
+                    pady=3,
+                ).grid(row=row_index, column=col_index, sticky="nsew", padx=1, pady=1)
+                col_index += 1
+
+        ajuster_scroll()
+
+    def toggle_filtre(nom_filtre):
+        if nom_filtre in filtres_actifs:
+            filtres_actifs.remove(nom_filtre)
+        else:
+            filtres_actifs.add(nom_filtre)
+        style_puce(puces_filtres[nom_filtre], nom_filtre in filtres_actifs)
+        rendre_tableau()
+
+    def toggle_colonne(cle_colonne):
+        # Toujours garder au moins une colonne visible en plus du nom.
+        if cle_colonne in colonnes_visibles and len(colonnes_visibles) == 1:
+            return
+        if cle_colonne in colonnes_visibles:
+            colonnes_visibles.remove(cle_colonne)
+        else:
+            colonnes_visibles.add(cle_colonne)
+        style_puce(puces_colonnes[cle_colonne], cle_colonne in colonnes_visibles, couleur_on="#1B4332")
+        rendre_tableau()
+
+    x = 30
+    y = 355
+    for nom_filtre in filtres:
+        puce = Label(
+            fenetre,
+            text=nom_filtre,
+            font=("Comic Sans MS", 10, "bold"),
+            fg="#1B4332",
+            bg=COLOR_BODY_BG,
+            cursor="hand2",
+            padx=7,
+            pady=2,
+        )
+        puce.place(x=x, y=y)
+        puce.bind("<Button-1>", lambda _e, n=nom_filtre: toggle_filtre(n))
+        puces_filtres[nom_filtre] = puce
+        x += tkfont.Font(family="Comic Sans MS", size=10, weight="bold").measure(nom_filtre) + 34
+        if x > 560:
+            x = 30
+            y += 30
+
+    Label(
+        fenetre,
+        text="COLONNES VISIBLES",
+        font=("Comic Sans MS", 11, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=438, anchor="center")
+
+    x = 35
+    y = 448
+    for cle_colonne, libelle in colonnes:
+        puce = Label(
+            fenetre,
+            text=libelle,
+            font=("Comic Sans MS", 10, "bold"),
+            fg="white",
+            bg="#1B4332",
+            cursor="hand2",
+            padx=7,
+            pady=2,
+        )
+        puce.place(x=x, y=y)
+        puce.bind("<Button-1>", lambda _e, c=cle_colonne: toggle_colonne(c))
+        puces_colonnes[cle_colonne] = puce
+        x += tkfont.Font(family="Comic Sans MS", size=10, weight="bold").measure(libelle) + 34
+        if x > 560:
+            x = 35
+            y += 30
+
+    rendre_tableau()
+
+
 def afficher_dynanim_body(
     fenetre,
     app_actif,
@@ -1595,6 +1866,8 @@ def afficher_dynanim_body(
                 on_projets_valider=on_projets_valider,
                 on_penalites_valider=on_penalites_valider,
             )
+        elif dynanim_onglet_actif == "STATS":
+            afficher_onglet_stats(fenetre, on_profil_click=on_profil_click)
 
     if app_actif == "PARAMETRE":
         afficher_parametre_body(
