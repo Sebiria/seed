@@ -1,4 +1,6 @@
 from datetime import datetime
+from pathlib import Path
+import sys
 from tkinter import Label, TclError
 from PIL import Image, ImageTk
 from main import date_du_jour_propre
@@ -41,7 +43,12 @@ IMG_LABEL_INFO = "img/label_info.png"
 
 def _charger_photo(path, size):
     """Charge une image et retourne un PhotoImage redimensionné."""
-    image_originale = Image.open(path)
+    chemin_image = Path(path)
+    if not chemin_image.is_absolute() and not chemin_image.exists():
+        base_runtime = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+        chemin_image = base_runtime / chemin_image
+
+    image_originale = Image.open(chemin_image)
     image_redimensionnee = image_originale.resize(size, Image.Resampling.LANCZOS)
     return ImageTk.PhotoImage(image_redimensionnee)
 

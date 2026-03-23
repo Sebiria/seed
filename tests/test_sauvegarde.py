@@ -26,7 +26,7 @@ class TestSauvegarde(unittest.TestCase):
         sauvegarde.charger_donnees(profils, periodes)
 
         self.assertTrue(sauvegarde.SAVE_PATH.exists())
-        self.assertEqual(len(profils), 5)
+        self.assertEqual(len(profils), 0)
         for cle in ["p1", "p2", "p3", "p4", "p5", "ferie"]:
             self.assertIn(cle, periodes)
 

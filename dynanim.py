@@ -2,6 +2,8 @@ from tkinter import Label, Entry, OptionMenu, StringVar, Button, Listbox, Canvas
 from tkinter import font as tkfont
 from PIL import Image, ImageTk
 from datetime import datetime, timedelta
+from pathlib import Path
+import sys
 import calendar
 from main import periodes, profils
 from calculs import (
@@ -64,7 +66,12 @@ RESET_SEPARATOR_BOTTOM = 760
 
 
 def _charger_photo(path, size):
-    image_originale = Image.open(path)
+    chemin_image = Path(path)
+    if not chemin_image.is_absolute() and not chemin_image.exists():
+        base_runtime = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+        chemin_image = base_runtime / chemin_image
+
+    image_originale = Image.open(chemin_image)
     image_redimensionnee = image_originale.resize(size, Image.Resampling.LANCZOS)
     return ImageTk.PhotoImage(image_redimensionnee)
 

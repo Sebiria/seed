@@ -1,14 +1,9 @@
 import json
-import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-
-from calculs import trouver_periode_pour_date
 
 SAVE_PATH = Path(__file__).resolve().parent / "sauvegarde.json"
 PERIODES_ORDRE = ["p1", "p2", "p3", "p4", "p5"]
-JOURS_ORDRE = ["lundi", "mardi", "jeudi", "vendredi"]
-ACTIVITES_POSSIBLES = ["sportive", "manuelle", "simple", "libre"]
 
 
 def _dt_to_iso(value):
@@ -103,60 +98,10 @@ def _deserialiser_profils(brut):
     return profils
 
 
-def _periodes_par_defaut():
-    return {
-        "p1": [datetime(2025, 9, 1), datetime(2025, 10, 17)],
-        "p2": [datetime(2025, 11, 3), datetime(2025, 12, 19)],
-        "p3": [datetime(2026, 1, 5), datetime(2026, 2, 20)],
-        "p4": [datetime(2026, 3, 9), datetime(2026, 4, 17)],
-        "p5": [datetime(2026, 5, 4), datetime(2026, 7, 3)],
-        "ferie": [],
-    }
-
-
-def _profil_vide(date_debut):
-    return {
-        "date_debut": date_debut,
-        "activites": {
-            periode: {jour: "" for jour in JOURS_ORDRE}
-            for periode in PERIODES_ORDRE
-        },
-        "penalite": {},
-        "projet": {},
-        "niveau": 1,
-    }
-
-
-def _creer_profils_exemple(periodes):
-    rnd = random.Random(2025)
-    noms = [
-        "ALICE MARTIN",
-        "JULIEN ROBERT",
-        "MAYA DUPONT",
-        "THOMAS BERNARD",
-        "LOLA MOREAU",
-    ]
-
-    profils = {}
-    debut_fenetre = datetime(2025, 9, 10)
-    fin_fenetre = datetime(2025, 9, 30)
-    delta = (fin_fenetre - debut_fenetre).days
-
-    for nom in noms:
-        date_debut = debut_fenetre + timedelta(days=rnd.randint(0, delta))
-        profil = _profil_vide(date_debut)
-        periode = trouver_periode_pour_date(date_debut, periodes)
-        if periode:
-            for jour in JOURS_ORDRE:
-                profil["activites"][periode][jour] = rnd.choice(ACTIVITES_POSSIBLES)
-        profils[nom] = profil
-
-    return profils
-
-
 def _payload_par_defaut():
-    periodes = _periodes_par_defaut()
-    profils = _creer_profils_exemple(periodes)
+    periodes = {periode: [] for periode in PERIODES_ORDRE}
+    periodes["ferie"] = []
+    profils = {}
     return {
         "profils": _serialiser_profils(profils),
         "periodes": _serialiser_periodes(periodes),
