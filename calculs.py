@@ -59,6 +59,42 @@ def trouver_periode_pour_date(date_cible, periodes):
     return None
 
 
+def periode_active(periodes, date_reference=None):
+    """Retourne la période scolaire active pour la date de référence."""
+    reference = _to_date(date_reference) or date.today()
+    return trouver_periode_pour_date(reference, periodes)
+
+
+def periode_profil_est_vide(profil, periode):
+    """Indique si la semaine type d'un profil est vide pour une période donnée."""
+    activites = profil.get("activites", {}).get(periode, {})
+    if not isinstance(activites, dict):
+        return True
+
+    for jour in ["lundi", "mardi", "jeudi", "vendredi"]:
+        if str(activites.get(jour, "") or "").strip():
+            return False
+    return True
+
+
+def profils_a_mettre_a_jour_periode(profils, periodes, date_reference=None):
+    """Retourne la période active et les profils dont la semaine type y est vide."""
+    reference = _to_date(date_reference) or date.today()
+    periode = periode_active(periodes, date_reference=reference)
+    if not periode:
+        return {"periode": None, "profils": []}
+
+    resultat = []
+    for nom, profil in profils.items():
+        date_debut = _to_date(profil.get("date_debut"))
+        if not date_debut or date_debut > reference:
+            continue
+        if periode_profil_est_vide(profil, periode):
+            resultat.append(nom)
+
+    return {"periode": periode, "profils": sorted(resultat)}
+
+
 def points_activite(activite):
     if not isinstance(activite, str):
         return 0
@@ -190,18 +226,22 @@ def penalites_par_date(profil, date_fin=None):
     return resultat
 
 
-def compter_jours_penalises_reels(profil, periodes):
+def lister_penalites_reelles(profil, periodes):
     """
-    Compte les jours où la pénalité réduit effectivement les points de base.
-    Un jour n'est pénalisé que si la valeur override < points de base de l'activité prévue.
-    Si la pénalité est >= aux points de base (ex: 1 pt prévu, 3 pts appliqués), ce n'est pas une pénalité.
+    Retourne la liste chronologique des pénalités qui réduisent réellement les points.
+
+    Chaque entrée contient:
+    - date_source: clé originale du dictionnaire `penalite`
+    - date: date normalisée
+    - valeur: valeur override appliquée
+    - base: points de base du jour planifié
     """
     penalites = profil.get("penalite", {})
     if not isinstance(penalites, dict):
-        return 0
+        return []
 
     ferie_dates = extraire_dates_ferie(periodes)
-    count = 0
+    resultat = []
     for date_penalite, valeur in penalites.items():
         d = _to_date(date_penalite)
         if not d:
@@ -214,8 +254,26 @@ def compter_jours_penalises_reels(profil, periodes):
             continue
         base = points_jour_profil(profil, periodes, d, ferie_dates=ferie_dates)
         if val < base:
-            count += 1
-    return count
+            resultat.append(
+                {
+                    "date_source": date_penalite,
+                    "date": d,
+                    "valeur": val,
+                    "base": base,
+                }
+            )
+
+    resultat.sort(key=lambda item: item["date"])
+    return resultat
+
+
+def compter_jours_penalises_reels(profil, periodes):
+    """
+    Compte les jours où la pénalité réduit effectivement les points de base.
+    Un jour n'est pénalisé que si la valeur override < points de base de l'activité prévue.
+    Si la pénalité est >= aux points de base (ex: 1 pt prévu, 3 pts appliqués), ce n'est pas une pénalité.
+    """
+    return len(lister_penalites_reelles(profil, periodes))
 
 
 def points_jour_effectifs_profil(profil, periodes, date_cible, ferie_dates=None, penalites_dates=None):

@@ -1,3 +1,4 @@
+from datetime import datetime
 from tkinter import Tk
 from affichage import afficher_header, afficher_info_header
 from dynanim import afficher_dynanim_body
@@ -63,6 +64,15 @@ def sauvegarder_etat(recalculer_niveaux=False):
     sauvegarder_donnees(profils, periodes)
 
 
+def definir_message_flash_profil(nom_profil, texte, couleur="#2E7D32"):
+    """Stocke un message temporaire à afficher lors du prochain rendu de la fiche profil."""
+    fenetre._profil_flash_message = {
+        "nom_profil": nom_profil,
+        "texte": texte,
+        "couleur": couleur,
+    }
+
+
 def render_ui():
     afficher_header(fenetre)
     afficher_info_header(fenetre, app_actif, periodes, on_parametre_click)
@@ -87,6 +97,10 @@ def render_ui():
         on_parametre_mutation,
         on_projets_valider,
         on_penalites_valider,
+        on_profil_projets_supprimer,
+        on_profil_penalites_supprimer,
+        on_profil_supprimer,
+        on_profil_reinitialiser,
     )
 
 
@@ -269,6 +283,93 @@ def on_penalites_valider(nom_profil, date_penalite, valeur):
     # Clé unique: datetime (attendu par les calculs et la sérialisation)
     penalites[date_penalite] = int(valeur)
     sauvegarder_etat(recalculer_niveaux=True)
+
+
+def on_profil_projets_supprimer(nom_profil, projets_a_supprimer):
+    """Supprime des projets depuis la fiche profil, puis sauvegarde."""
+    profil = profils.get(nom_profil)
+    if not profil:
+        return 0
+
+    projets = profil.setdefault("projet", {})
+    if not isinstance(projets, dict):
+        profil["projet"] = {}
+        projets = profil["projet"]
+
+    supprimes = 0
+    for nom_projet in set(projets_a_supprimer or []):
+        if nom_projet in projets:
+            del projets[nom_projet]
+            supprimes += 1
+
+    if supprimes:
+        definir_message_flash_profil(nom_profil, f"{supprimes} projet(s) supprimé(s).")
+        sauvegarder_etat(recalculer_niveaux=True)
+        update_ui()
+    return supprimes
+
+
+def on_profil_penalites_supprimer(nom_profil, penalites_a_supprimer):
+    """Supprime des pénalités réelles depuis la fiche profil, puis sauvegarde."""
+    profil = profils.get(nom_profil)
+    if not profil:
+        return 0
+
+    penalites = profil.setdefault("penalite", {})
+    if not isinstance(penalites, dict):
+        profil["penalite"] = {}
+        penalites = profil["penalite"]
+
+    supprimes = 0
+    for date_penalite in list(set(penalites_a_supprimer or [])):
+        if date_penalite in penalites:
+            del penalites[date_penalite]
+            supprimes += 1
+
+    if supprimes:
+        definir_message_flash_profil(nom_profil, f"{supprimes} jour(s) pénalisé(s) supprimé(s).")
+        sauvegarder_etat(recalculer_niveaux=True)
+        update_ui()
+    return supprimes
+
+
+def on_profil_supprimer(nom_profil):
+    """Supprime un profil depuis la liste PROFILS, puis sauvegarde."""
+    global profil_selectionne
+    if nom_profil not in profils:
+        return
+
+    del profils[nom_profil]
+    if profil_selectionne == nom_profil:
+        profil_selectionne = None
+
+    sauvegarder_etat(recalculer_niveaux=True)
+    update_ui()
+
+
+def on_profil_reinitialiser(nom_profil):
+    """Réinitialise un profil existant pour une nouvelle année (sans le supprimer)."""
+    profil = profils.get(nom_profil)
+    if not profil:
+        return
+
+    p1 = periodes.get("p1", [])
+    if isinstance(p1, list) and len(p1) == 2 and isinstance(p1[0], datetime):
+        date_debut_reinit = p1[0]
+    else:
+        date_debut_reinit = datetime.now()
+
+    profil["date_debut"] = date_debut_reinit
+    profil["activites"] = {
+        periode: {jour: "" for jour in JOURS_PROFIL}
+        for periode in PERIODES_PROFIL
+    }
+    profil["penalite"] = {}
+    profil["projet"] = {}
+    profil["niveau"] = 1
+
+    sauvegarder_etat(recalculer_niveaux=True)
+    update_ui()
 
 
 def on_close():

@@ -7,8 +7,10 @@ from calculs import (
     calculer_xp_globale_profil,
     calculer_xp_reelle_totale_profil,
     etoiles_depuis_score,
+    lister_penalites_reelles,
     note_depuis_points_semaine,
     points_max_theoriques_profil,
+    profils_a_mettre_a_jour_periode,
 )
 
 
@@ -114,6 +116,40 @@ class TestCalculsProfils(unittest.TestCase):
         xp = calculer_xp_globale_profil(self.profil, self.periodes, date_reference=datetime(2025, 9, 6))
         self.assertEqual(xp, 10)
 
+    def test_lister_penalites_reelles_filtre_les_non_penalisantes(self):
+        self.profil["penalite"] = {
+            datetime(2025, 9, 2): 1,
+            datetime(2025, 9, 4): 3,
+            datetime(2025, 9, 5): 0,
+        }
+
+        penalites = lister_penalites_reelles(self.profil, self.periodes)
+
+        self.assertEqual(
+            [item["date"] for item in penalites],
+            [datetime(2025, 9, 2).date(), datetime(2025, 9, 5).date()],
+        )
+        self.assertEqual([item["valeur"] for item in penalites], [1, 0])
+        self.assertEqual([item["base"] for item in penalites], [3, 3])
+
+    def test_lister_penalites_reelles_trie_par_date(self):
+        self.profil["penalite"] = {
+            datetime(2025, 9, 5): 0,
+            datetime(2025, 9, 1): 1,
+            datetime(2025, 9, 2): 2,
+        }
+
+        penalites = lister_penalites_reelles(self.profil, self.periodes)
+
+        self.assertEqual(
+            [item["date"] for item in penalites],
+            [
+                datetime(2025, 9, 1).date(),
+                datetime(2025, 9, 2).date(),
+                datetime(2025, 9, 5).date(),
+            ],
+        )
+
     def test_penalite_format_objet_est_prise_en_compte(self):
         # Compatibilité avec le format {'valeur': int}.
         self.profil["penalite"] = {datetime(2025, 9, 5): {"valeur": 1, "date": datetime(2025, 9, 5)}}
@@ -177,6 +213,74 @@ class TestCalculsProfils(unittest.TestCase):
             repartition["types_tries"],
             [("sportive", 25), ("manuelle", 25), ("simple", 25), ("libre", 25)],
         )
+
+    def test_profils_a_mettre_a_jour_sur_periode_active(self):
+        periodes = {
+            "p1": [datetime(2025, 9, 1), datetime(2025, 9, 30)],
+            "p2": [datetime(2025, 10, 1), datetime(2025, 10, 31)],
+            "p3": [],
+            "p4": [],
+            "p5": [],
+            "ferie": [],
+        }
+        profils = {
+            "ALICE": {
+                "date_debut": datetime(2025, 9, 1),
+                "activites": {
+                    "p1": {"lundi": "sportive", "mardi": "simple", "jeudi": "libre", "vendredi": "manuelle"},
+                    "p2": {"lundi": "", "mardi": "", "jeudi": "", "vendredi": ""},
+                },
+            },
+            "BRUNO": {
+                "date_debut": datetime(2025, 9, 1),
+                "activites": {
+                    "p1": {"lundi": "sportive", "mardi": "simple", "jeudi": "libre", "vendredi": "manuelle"},
+                    "p2": {"lundi": "sportive", "mardi": "simple", "jeudi": "libre", "vendredi": "manuelle"},
+                },
+            },
+        }
+
+        resultat = profils_a_mettre_a_jour_periode(
+            profils,
+            periodes,
+            date_reference=datetime(2025, 10, 15),
+        )
+
+        self.assertEqual(resultat["periode"], "p2")
+        self.assertEqual(resultat["profils"], ["ALICE"])
+
+    def test_profils_a_mettre_a_jour_exclut_profils_pas_commences(self):
+        periodes = {
+            "p1": [datetime(2025, 9, 1), datetime(2025, 9, 30)],
+            "p2": [datetime(2025, 10, 1), datetime(2025, 10, 31)],
+            "p3": [],
+            "p4": [],
+            "p5": [],
+            "ferie": [],
+        }
+        profils = {
+            "CHARLIE": {
+                "date_debut": datetime(2025, 11, 3),
+                "activites": {
+                    "p2": {"lundi": "", "mardi": "", "jeudi": "", "vendredi": ""},
+                },
+            }
+        }
+
+        resultat = profils_a_mettre_a_jour_periode(
+            profils,
+            periodes,
+            date_reference=datetime(2025, 10, 15),
+        )
+
+        self.assertEqual(resultat["periode"], "p2")
+        self.assertEqual(resultat["profils"], [])
+
+    def test_profils_a_mettre_a_jour_aucune_periode_active(self):
+        periodes = {"p1": [], "p2": [], "p3": [], "p4": [], "p5": [], "ferie": []}
+        resultat = profils_a_mettre_a_jour_periode({}, periodes, date_reference=datetime(2025, 10, 15))
+        self.assertIsNone(resultat["periode"])
+        self.assertEqual(resultat["profils"], [])
 
 
 if __name__ == "__main__":

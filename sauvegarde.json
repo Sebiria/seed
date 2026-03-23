@@ -1,48 +1,5 @@
 {
   "profils": {
-    "ALICE MARTIN": {
-      "date_debut": "2025-09-27T00:00:00",
-      "activites": {
-        "p1": {
-          "lundi": "sportive",
-          "mardi": "libre",
-          "jeudi": "manuelle",
-          "vendredi": "sportive"
-        },
-        "p2": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        },
-        "p3": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        },
-        "p4": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        },
-        "p5": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
-        }
-      },
-      "penalite": {},
-      "projet": {
-        "thu": {
-          "valeur": 30,
-          "date_creation": null
-        }
-      },
-      "niveau": 5
-    },
     "MAYA DUPONT": {
       "date_debut": "2025-09-22T00:00:00",
       "activites": {
@@ -141,10 +98,10 @@
           "vendredi": ""
         },
         "p4": {
-          "lundi": "",
-          "mardi": "",
-          "jeudi": "",
-          "vendredi": ""
+          "lundi": "sportive",
+          "mardi": "simple",
+          "jeudi": "manuelle",
+          "vendredi": "libre"
         },
         "p5": {
           "lundi": "",
@@ -155,15 +112,15 @@
       },
       "penalite": {},
       "projet": {},
-      "niveau": 3
+      "niveau": 5
     },
     "JULIEN ROBERTO": {
       "date_debut": "2025-09-21T00:00:00",
       "activites": {
         "p1": {
           "lundi": "sportive",
-          "mardi": "simple",
-          "jeudi": "simple",
+          "mardi": "sportive",
+          "jeudi": "sportive",
           "vendredi": "sportive"
         },
         "p2": {
@@ -192,8 +149,7 @@
         }
       },
       "penalite": {
-        "2026-03-19T00:00:00": 0,
-        "2026-03-16T00:00:00": 0
+        "2026-03-19T00:00:00": 0
       },
       "projet": {
         "deb": {
@@ -208,16 +164,12 @@
           "valeur": 30,
           "date_creation": null
         },
-        "thu": {
-          "valeur": 30,
-          "date_creation": null
-        },
         "def": {
           "valeur": 10,
           "date_creation": null
         }
       },
-      "niveau": 15
+      "niveau": 14
     }
   },
   "periodes": {
@@ -234,8 +186,8 @@
       "2026-02-20T00:00:00"
     ],
     "p4": [
-      "2026-03-09T00:00:00",
-      "2026-04-17T00:00:00"
+      "2026-03-02T00:00:00",
+      "2026-04-10T00:00:00"
     ],
     "p5": [
       "2026-05-04T00:00:00",

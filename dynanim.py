@@ -1,7 +1,7 @@
 from tkinter import Label, Entry, OptionMenu, StringVar, Button, Listbox, Canvas, Frame, Scrollbar, TclError
 from tkinter import font as tkfont
 from PIL import Image, ImageTk
-from datetime import datetime
+from datetime import datetime, timedelta
 import calendar
 from main import periodes, profils
 from calculs import (
@@ -11,7 +11,9 @@ from calculs import (
     calculer_score_engagement_profil,
     compter_jours_penalises_reels,
     infos_progression_niveau,
+    lister_penalites_reelles,
     note_depuis_points_semaine,
+    profils_a_mettre_a_jour_periode,
     points_projets_profil,
     points_semaine_type_periode,
 )
@@ -320,7 +322,7 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
     }
 
     # region Erreur + Bouton valider
-    label_erreur = Label(fenetre, text="", font=("Comic Sans MS", 10, "italic"), fg="red", bg="white")
+    label_erreur = Label(fenetre, text="", font=("Comic Sans MS", 10, "italic"), fg="red", bg=COLOR_BODY_BG)
     label_erreur.place(x=AJOUT_CENTER_X, y=AJOUT_Y_START + 375, anchor="center")
 
     def annuler_disparition_message():
@@ -341,7 +343,7 @@ def afficher_onglet_ajout(fenetre, on_valider=None, nom_existe=None):
 
     def afficher_erreur(message):
         annuler_disparition_message()
-        label_erreur.config(text=message, fg="red", bg="white", font=("Comic Sans MS", 10, "italic"))
+        label_erreur.config(text=message, fg="red", bg=COLOR_BODY_BG, font=("Comic Sans MS", 10, "italic"))
 
     def afficher_succes(nom):
         annuler_disparition_message()
@@ -969,6 +971,10 @@ def afficher_onglet_profil(
     on_profil_activites_valider=None,
     on_profil_renommer=None,
     on_nom_existe=None,
+    on_profil_projets_supprimer=None,
+    on_profil_penalites_supprimer=None,
+    on_profil_supprimer=None,
+    on_profil_reinitialiser=None,
 ):
     """Affiche la liste des profils ou le détail d'un profil sélectionné."""
     if profil_selectionne and profil_selectionne in profils:
@@ -979,6 +985,8 @@ def afficher_onglet_profil(
             on_profil_activites_valider=on_profil_activites_valider,
             on_profil_renommer=on_profil_renommer,
             on_nom_existe=on_nom_existe,
+            on_profil_projets_supprimer=on_profil_projets_supprimer,
+            on_profil_penalites_supprimer=on_profil_penalites_supprimer,
         )
         return
 
@@ -1006,6 +1014,75 @@ def afficher_onglet_profil(
     contenu = Frame(canvas, bg=COLOR_BODY_BG)
     canvas_window = canvas.create_window((0, 0), window=contenu, anchor="nw")
 
+    confirmation_widgets = []
+
+    def fermer_confirmation():
+        for widget in confirmation_widgets:
+            try:
+                if widget.winfo_exists():
+                    widget.destroy()
+            except TclError:
+                pass
+        confirmation_widgets.clear()
+
+    def ouvrir_confirmation(action, nom_profil, on_confirmer):
+        fermer_confirmation()
+
+        largeur, hauteur = 360, 130
+        x = (BODY_WIDTH - largeur) // 2
+        y = 500
+
+        photo_popup = _charger_photo("img/label_info.png", (largeur, hauteur))
+        fond_popup = _creer_label_image(fenetre, photo_popup, bd=0, highlightthickness=0)
+        fond_popup.place(x=x, y=y)
+        confirmation_widgets.append(fond_popup)
+
+        texte_action = "supprimer" if action == "SUPPRESSION" else "réinitialiser"
+        label_question = Label(
+            fenetre,
+            text=f"Confirmer: {texte_action} {nom_profil} ?",
+            font=("Comic Sans MS", 11, "bold"),
+            fg="#1B4332",
+            bg=COLOR_BODY_BG,
+        )
+        label_question.place(x=x + largeur // 2, y=y + 40, anchor="center")
+        confirmation_widgets.append(label_question)
+
+        def confirmer():
+            fermer_confirmation()
+            if on_confirmer:
+                on_confirmer(nom_profil)
+
+        bouton_oui = Button(
+            fenetre,
+            text="Oui",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_NAV_TEXT_BG,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=14,
+            pady=3,
+            command=confirmer,
+        )
+        bouton_oui.place(x=x + 130, y=y + 90, anchor="center")
+        confirmation_widgets.append(bouton_oui)
+
+        bouton_non = Button(
+            fenetre,
+            text="Non",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_VALIDER_INACTIF,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=14,
+            pady=3,
+            command=fermer_confirmation,
+        )
+        bouton_non.place(x=x + 230, y=y + 90, anchor="center")
+        confirmation_widgets.append(bouton_non)
+
     noms = sorted(profils.keys())
     if not noms:
         Label(
@@ -1017,19 +1094,52 @@ def afficher_onglet_profil(
         ).pack(anchor="w", padx=10, pady=6)
     else:
         for nom in noms:
+            ligne = Frame(contenu, bg=COLOR_BODY_BG)
+            ligne.pack(fill="x", padx=10, pady=4)
+
             label_profil = Label(
-                contenu,
+                ligne,
                 text=nom,
                 font=("Comic Sans MS", 15, "bold"),
                 fg="#1B4332",
                 bg=COLOR_BODY_BG,
                 anchor="w",
                 justify="left",
-                cursor="hand2",
+                cursor="hand2" if on_profil_click else "",
             )
-            label_profil.pack(fill="x", padx=10, pady=4)
+            label_profil.pack(side="left", fill="x", expand=True)
             if on_profil_click:
                 label_profil.bind("<Button-1>", lambda _e, n=nom: on_profil_click(n))
+
+            label_x = Label(
+                ligne,
+                text="X",
+                font=("Comic Sans MS", 13, "bold"),
+                fg="red",
+                bg=COLOR_BODY_BG,
+                cursor="hand2" if on_profil_supprimer else "",
+            )
+            label_x.pack(side="right", padx=(0, 0))
+            if on_profil_supprimer:
+                label_x.bind(
+                    "<Button-1>",
+                    lambda _e, n=nom: ouvrir_confirmation("SUPPRESSION", n, on_profil_supprimer),
+                )
+
+            label_r = Label(
+                ligne,
+                text="R",
+                font=("Comic Sans MS", 13, "bold"),
+                fg="black",
+                bg=COLOR_BODY_BG,
+                cursor="hand2" if on_profil_reinitialiser else "",
+            )
+            label_r.pack(side="right", padx=(0, 10))
+            if on_profil_reinitialiser:
+                label_r.bind(
+                    "<Button-1>",
+                    lambda _e, n=nom: ouvrir_confirmation("REINITIALISATION", n, on_profil_reinitialiser),
+                )
 
     def refresh_scroll_region(_event=None):
         canvas.configure(scrollregion=canvas.bbox("all"))
@@ -1047,6 +1157,180 @@ def afficher_onglet_profil(
     contenu.bind("<MouseWheel>", on_mousewheel)
 
 
+def afficher_onglet_accueil(fenetre, on_profil_click=None):
+    """Accueil Dynanim: contexte de période + urgences + profils à mettre à jour."""
+    now_dt = datetime.now()
+    today = now_dt.date()
+
+    resultat = profils_a_mettre_a_jour_periode(profils, periodes, date_reference=now_dt)
+    periode = resultat["periode"]
+    profils_maj = resultat["profils"]
+
+    def format_date_fr(dt):
+        return dt.strftime("%d/%m/%Y") if isinstance(dt, datetime) else "--/--/----"
+
+    def format_date_courte_fr(dt):
+        if not isinstance(dt, datetime):
+            return "-- ---"
+        mois_fr = [
+            "janvier",
+            "fevrier",
+            "mars",
+            "avril",
+            "mai",
+            "juin",
+            "juillet",
+            "aout",
+            "septembre",
+            "octobre",
+            "novembre",
+            "decembre",
+        ]
+        return f"{dt.day:02d} {mois_fr[dt.month - 1]}"
+
+    def extraire_profils_penalites_recentes(jours=30):
+        borne = today - timedelta(days=jours)
+        noms = []
+        for nom, profil in profils.items():
+            penalites = profil.get("penalite", {})
+            if not isinstance(penalites, dict):
+                continue
+            for d in penalites:
+                if isinstance(d, datetime) and borne <= d.date() <= today:
+                    noms.append(nom)
+                    break
+        return sorted(set(noms))
+
+    def extraire_profils_sans_projet():
+        noms = []
+        for nom, profil in profils.items():
+            projets = profil.get("projet", {})
+            if not isinstance(projets, dict) or len(projets) == 0:
+                noms.append(nom)
+        return sorted(noms)
+
+    def creer_bloc_liste(x, y, largeur, hauteur, titre, noms, message_vide):
+        conteneur = Frame(
+            fenetre,
+            bg="white",
+            highlightthickness=1,
+            highlightbackground="#1B4332",
+        )
+        conteneur.place(x=x, y=y, width=largeur, height=hauteur)
+
+        Label(
+            conteneur,
+            text=titre,
+            font=("Comic Sans MS", 11, "bold"),
+            fg="white",
+            bg="#1B4332",
+        ).place(x=0, y=0, width=largeur, height=30)
+
+        zone_h = hauteur - 36
+        canvas = Canvas(conteneur, bg="white", highlightthickness=0)
+        canvas.place(x=4, y=32, width=largeur - 24, height=zone_h)
+
+        scrollbar = Scrollbar(conteneur, orient="vertical", command=canvas.yview)
+        scrollbar.place(x=largeur - 18, y=32, height=zone_h)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        contenu = Frame(canvas, bg="white")
+        canvas_window = canvas.create_window((0, 0), window=contenu, anchor="nw")
+
+        def ajuster_scroll(_event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfigure(canvas_window, width=largeur - 24)
+
+        contenu.bind("<Configure>", ajuster_scroll)
+        canvas.bind("<MouseWheel>", lambda event: (canvas.yview_scroll(-1 * int(event.delta / 120), "units"), "break")[1])
+
+        if not noms:
+            Label(
+                contenu,
+                text=message_vide,
+                font=("Comic Sans MS", 10, "italic"),
+                fg="#1B4332",
+                bg="white",
+                wraplength=largeur - 40,
+                justify="left",
+            ).pack(anchor="w", padx=8, pady=8)
+            return
+
+        for nom in noms:
+            label_nom = Label(
+                contenu,
+                text=nom,
+                font=("Comic Sans MS", 10, "bold"),
+                fg="#1B4332",
+                bg="white",
+                anchor="w",
+                cursor="hand2" if on_profil_click else "",
+            )
+            label_nom.pack(fill="x", padx=8, pady=3)
+            if on_profil_click:
+                label_nom.bind("<Button-1>", lambda _e, n=nom: on_profil_click(n))
+
+    # Ligne période centrée sur X en 2 lignes (sans bloc encadré).
+    if periode and isinstance(periodes.get(periode, []), list) and len(periodes.get(periode, [])) == 2:
+        debut_periode, fin_periode = periodes[periode]
+        numero_periode = periode[1:] if len(periode) > 1 else periode
+        ligne_1 = f"Periode {numero_periode}"
+        ligne_2 = f"Du {format_date_courte_fr(debut_periode)} au {format_date_courte_fr(fin_periode)}"
+    else:
+        ligne_1 = "Periode a definir"
+        ligne_2 = "Du -- --- au -- ---"
+
+    Label(
+        fenetre,
+        text=ligne_1,
+        font=("Comic Sans MS", 16, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=338, anchor="center")
+
+    Label(
+        fenetre,
+        text=ligne_2,
+        font=("Comic Sans MS", 16, "bold"),
+        fg="#1B4332",
+        bg=COLOR_BODY_BG,
+    ).place(x=350, y=370, anchor="center")
+
+    # Bloc 2: actions (2 colonnes compartimentées).
+    profils_penalites_recentes = extraire_profils_penalites_recentes(jours=30)
+    profils_sans_projet = extraire_profils_sans_projet()
+
+    creer_bloc_liste(
+        35,
+        430,
+        305,
+        135,
+        "PÉNALITÉS (30 jours)",
+        profils_penalites_recentes,
+        "Aucune pénalité récente",
+    )
+    creer_bloc_liste(
+        360,
+        430,
+        305,
+        135,
+        "SANS PROJET",
+        profils_sans_projet,
+        "Tous les profils ont au moins un projet",
+    )
+
+    # Bloc 3: liste principale des profils à mettre à jour.
+    creer_bloc_liste(
+        35,
+        575,
+        630,
+        170,
+        "PROFILS À METTRE À JOUR SUR LA PÉRIODE ACTUELLE",
+        profils_maj,
+        "Aucun profil à compléter pour la période actuelle",
+    )
+
+
 def afficher_onglet_profil_detail(
     fenetre,
     nom_profil,
@@ -1054,6 +1338,8 @@ def afficher_onglet_profil_detail(
     on_profil_activites_valider=None,
     on_profil_renommer=None,
     on_nom_existe=None,
+    on_profil_projets_supprimer=None,
+    on_profil_penalites_supprimer=None,
 ):
     """Affiche une interface récapitulative d'un profil."""
     profil = profils.get(nom_profil)
@@ -1068,7 +1354,6 @@ def afficher_onglet_profil_detail(
         bg=COLOR_NAV_TEXT_BG,
     )
 
-    # Titre cliquable pour éditer le nom du profil.
     titre_click = Label(
         fenetre,
         text=nom_profil,
@@ -1095,11 +1380,9 @@ def afficher_onglet_profil_detail(
     engagement = calculer_score_engagement_profil(profil, periodes)
     progression = infos_progression_niveau(xp)
 
-    # Place l'image d'étoiles à 10 px à droite du titre profil.
     titre_font = tkfont.Font(family="Comic Sans MS", size=12, weight="bold")
     titre_width = titre_font.measure(nom_profil) + 40
     titre_right = VACANCES_CENTER_X + titre_width // 2
-
     photo_etoiles = _charger_photo(engagement["image_etoiles"], (200, 45))
     label_etoiles = _creer_label_image(fenetre, photo_etoiles, bd=0, highlightthickness=0, bg="#D8F3DC")
     label_etoiles.place(x=titre_right + 10, y=311)
@@ -1142,46 +1425,293 @@ def afficher_onglet_profil_detail(
     }
     y_type = 442
     for type_activite, pourcentage in repartition["types_tries"]:
-        texte = f"{libelles_types.get(type_activite, type_activite.title())} a {pourcentage}%"
         Label(
             fenetre,
-            text=texte,
+            text=f"{libelles_types.get(type_activite, type_activite.title())} a {pourcentage}%",
             font=("Comic Sans MS", 9, "bold"),
             fg="#1B4332",
             bg=COLOR_BODY_BG,
         ).place(x=type_anim_x, y=y_type, anchor="center")
         y_type += 18
 
-
     Frame(fenetre, bg="#FF7500", height=2, width=560).place(x=70, y=522)
-
 
     projets = profil.get("projet", {})
     if not isinstance(projets, dict):
         projets = {}
     nb_projets = len(projets)
     points_projets = points_projets_profil(profil)
-
-    penalites = profil.get("penalite", {})
-    if not isinstance(penalites, dict):
-        penalites = {}
     nb_jours_penalises = compter_jours_penalises_reels(profil, periodes)
 
-    Label(
-        fenetre,
-        text="Nombre de projets",
-        font=("Comic Sans MS", 11, "bold"),
-        fg="#1B4332",
-        bg=COLOR_BODY_BG,
-    ).place(x=350, y=600, anchor="center")
+    recap_x = 90
+    recap_font = ("Comic Sans MS", 11, "bold")
+    recap_font_obj = tkfont.Font(family="Comic Sans MS", size=11, weight="bold")
 
-    Label(
+    editeur_widgets = []
+    editeur_nom_widgets = []
+    popup_widgets = []
+
+    label_message_action = Label(
+        fenetre,
+        text="",
+        font=("Comic Sans MS", 10, "bold"),
+        fg="#2E7D32",
+        bg=COLOR_BODY_BG,
+    )
+    label_message_action.place(x=350, y=742, anchor="center")
+
+    def annuler_message_action():
+        after_id = getattr(fenetre, "_profil_message_after_id", None)
+        if after_id:
+            try:
+                fenetre.after_cancel(after_id)
+            except TclError:
+                pass
+            fenetre._profil_message_after_id = None
+
+    def masquer_message_action():
+        try:
+            if label_message_action.winfo_exists():
+                label_message_action.config(text="")
+        except TclError:
+            pass
+        fenetre._profil_message_after_id = None
+
+    def afficher_message_action(message, couleur="#2E7D32"):
+        annuler_message_action()
+        try:
+            if label_message_action.winfo_exists():
+                label_message_action.config(text=message, fg=couleur, bg=COLOR_BODY_BG)
+                fenetre._profil_message_after_id = fenetre.after(5000, masquer_message_action)
+        except TclError:
+            fenetre._profil_message_after_id = None
+
+    flash_message = getattr(fenetre, "_profil_flash_message", None)
+    if isinstance(flash_message, dict) and flash_message.get("nom_profil") == nom_profil:
+        afficher_message_action(
+            flash_message.get("texte", ""),
+            flash_message.get("couleur", "#2E7D32"),
+        )
+        fenetre._profil_flash_message = None
+
+    def nettoyer_popup():
+        for widget in popup_widgets:
+            try:
+                if widget.winfo_exists():
+                    widget.destroy()
+            except TclError:
+                pass
+        popup_widgets.clear()
+
+    def formater_date_fr(dt):
+        return dt.strftime("%d/%m/%Y") if isinstance(dt, datetime) else "--/--/----"
+
+    def _safe_popup_error(label_widget, message):
+        try:
+            if label_widget and label_widget.winfo_exists():
+                label_widget.config(text=message)
+        except TclError:
+            pass
+
+    def ouvrir_popup_liste(titre, elements, callback_suppression, message_vide):
+        nettoyer_popup()
+
+        zone_w = 520
+        zone_h = 280
+        zone_x = (BODY_WIDTH - zone_w) // 2
+        zone_y = 430
+
+        photo_popup = _charger_photo("img/label_info.png", (zone_w, zone_h))
+        fond_popup = _creer_label_image(fenetre, photo_popup, bd=0, highlightthickness=0)
+        fond_popup.place(x=zone_x, y=zone_y)
+        popup_widgets.append(fond_popup)
+
+        if titre:
+            label_titre_popup = Label(
+                fenetre,
+                text=titre,
+                font=("Comic Sans MS", 12, "bold"),
+                fg="#1B4332",
+                bg=COLOR_BODY_BG,
+            )
+            label_titre_popup.place(x=zone_x + zone_w // 2, y=zone_y + 24, anchor="center")
+            popup_widgets.append(label_titre_popup)
+
+        listbox = Listbox(
+            fenetre,
+            width=54,
+            height=8,
+            font=("Comic Sans MS", 10),
+            bg="white",
+            fg="#1B4332",
+            selectbackground="#D8F3DC",
+            activestyle="none",
+        )
+        listbox.place(x=zone_x + 26, y=zone_y + 45)
+        popup_widgets.append(listbox)
+
+        scrollbar = Scrollbar(fenetre, orient="vertical", command=listbox.yview)
+        scrollbar.place(x=zone_x + zone_w - 30, y=zone_y + 45, height=146)
+        listbox.config(yscrollcommand=scrollbar.set)
+        popup_widgets.append(scrollbar)
+
+        selection_rouge = set()
+
+        def set_row_color(index, rouge):
+            try:
+                listbox.itemconfig(index, fg=("red" if rouge else "#1B4332"))
+            except TclError:
+                pass
+
+        if elements:
+            for idx, element in enumerate(elements):
+                listbox.insert("end", element["texte"])
+                set_row_color(idx, False)
+        else:
+            listbox.insert("end", message_vide)
+            set_row_color(0, False)
+
+        def on_click_liste(_event):
+            selection = listbox.curselection()
+            if not selection or not elements:
+                listbox.selection_clear(0, "end")
+                return "break"
+            idx = selection[0]
+            if idx in selection_rouge:
+                selection_rouge.remove(idx)
+                set_row_color(idx, False)
+            else:
+                selection_rouge.add(idx)
+                set_row_color(idx, True)
+            listbox.selection_clear(0, "end")
+            return "break"
+
+        def scroll_listbox(event):
+            listbox.yview_scroll(-1 * int(event.delta / 120), "units")
+            return "break"
+
+        listbox.bind("<<ListboxSelect>>", on_click_liste)
+        listbox.bind("<MouseWheel>", scroll_listbox)
+
+        label_erreur = Label(
+            fenetre,
+            text="",
+            font=("Comic Sans MS", 9, "bold"),
+            fg="red",
+            bg=COLOR_BODY_BG,
+        )
+        label_erreur.place(x=zone_x + zone_w // 2, y=zone_y + 248, anchor="center")
+        popup_widgets.append(label_erreur)
+
+        def fermer_popup():
+            nettoyer_popup()
+
+        def valider_popup():
+            if not selection_rouge:
+                _safe_popup_error(label_erreur, "⚠ Sélectionnez au moins un élément")
+                return
+
+            ids = [elements[idx]["id"] for idx in sorted(selection_rouge)]
+            fermer_popup()
+            if callback_suppression:
+                callback_suppression(ids)
+
+        bouton_valider = Button(
+            fenetre,
+            text="Valider",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_NAV_TEXT_BG,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=14,
+            pady=4,
+            command=valider_popup,
+        )
+        bouton_valider.place(x=zone_x + 180, y=zone_y + 220, anchor="center")
+        popup_widgets.append(bouton_valider)
+
+        bouton_annuler = Button(
+            fenetre,
+            text="Annuler",
+            font=("Comic Sans MS", 10, "bold"),
+            bg=COLOR_VALIDER_INACTIF,
+            fg="white",
+            cursor="hand2",
+            bd=0,
+            padx=14,
+            pady=4,
+            command=fermer_popup,
+        )
+        bouton_annuler.place(x=zone_x + 340, y=zone_y + 220, anchor="center")
+        popup_widgets.append(bouton_annuler)
+
+    def ouvrir_popup_projets():
+        elements = []
+        for nom_projet in sorted(projets.keys()):
+            valeur = projets[nom_projet]
+            if isinstance(valeur, dict):
+                valeur = valeur.get("valeur", 0)
+            elements.append({"id": nom_projet, "texte": f"{nom_projet} : {valeur} pts"})
+
+        ouvrir_popup_liste(
+            "PROJETS DU PROFIL",
+            elements,
+            (lambda ids: on_profil_projets_supprimer(nom_profil, ids)) if on_profil_projets_supprimer else None,
+            "Aucun projet enregistré",
+        )
+
+    def ouvrir_popup_penalites():
+        elements = []
+        for item in lister_penalites_reelles(profil, periodes):
+            texte = f"{formater_date_fr(datetime.combine(item['date'], datetime.min.time()))} : {item['valeur']} pt(s) au lieu de {item['base']}"
+            elements.append({"id": item["date_source"], "texte": texte})
+
+        ouvrir_popup_liste(
+            "JOURS PÉNALISÉS",
+            elements,
+            (lambda ids: on_profil_penalites_supprimer(nom_profil, ids)) if on_profil_penalites_supprimer else None,
+            "Aucun jour pénalisé enregistré",
+        )
+
+    def creer_titre_nav_cliquable(x_center, y_center, texte, on_click):
+        titre_font = tkfont.Font(family="Comic Sans MS", size=11, weight="bold")
+        nav_width = titre_font.measure(texte) + 32
+        nav_height = 28
+        photo_nav = _charger_photo("img/label_nav_dynanim.png", (nav_width, nav_height))
+        label_nav = _creer_label_image(
+            fenetre,
+            photo_nav,
+            bd=0,
+            highlightthickness=0,
+            cursor="hand2",
+        )
+        label_nav.place(x=x_center - nav_width // 2, y=y_center - nav_height // 2)
+
+        label_titre = Label(
+            fenetre,
+            text=texte,
+            font=("Comic Sans MS", 11, "bold"),
+            fg="white",
+            bg=COLOR_NAV_TEXT_BG,
+            cursor="hand2",
+        )
+        label_titre.place(x=x_center, y=y_center, anchor="center")
+
+        label_nav.bind("<Button-1>", lambda _e: on_click())
+        label_titre.bind("<Button-1>", lambda _e: on_click())
+
+    creer_titre_nav_cliquable(350, 595, "Nombre de projets", ouvrir_popup_projets)
+    label_nb_projets = Label(
         fenetre,
         text=str(nb_projets),
         font=("Comic Sans MS", 22, "bold"),
         fg="#1B4332",
         bg=COLOR_BODY_BG,
-    ).place(x=350, y=635, anchor="center")
+        cursor="hand2",
+    )
+    label_nb_projets.place(x=350, y=635, anchor="center")
+    label_nb_projets.bind("<Button-1>", lambda _e: ouvrir_popup_projets())
 
     Label(
         fenetre,
@@ -1199,28 +1729,17 @@ def afficher_onglet_profil_detail(
         bg=COLOR_BODY_BG,
     ).place(x=350, y=705, anchor="center")
 
-    Label(
-        fenetre,
-        text="Nombre de jours pénalisés",
-        font=("Comic Sans MS", 11, "bold"),
-        fg="#1B4332",
-        bg=COLOR_BODY_BG,
-    ).place(x=560, y=625, anchor="center")
-
-    Label(
+    creer_titre_nav_cliquable(560, 625, "Nombre de jours pénalisés", ouvrir_popup_penalites)
+    label_nb_penalises = Label(
         fenetre,
         text=str(nb_jours_penalises),
         font=("Comic Sans MS", 28, "bold"),
         fg="#1B4332",
         bg=COLOR_BODY_BG,
-    ).place(x=560, y=680, anchor="center")
-
-    recap_x = 90
-    recap_font = ("Comic Sans MS", 11, "bold")
-    recap_font_obj = tkfont.Font(family="Comic Sans MS", size=11, weight="bold")
-
-    editeur_widgets = []
-    editeur_nom_widgets = []
+        cursor="hand2",
+    )
+    label_nb_penalises.place(x=560, y=680, anchor="center")
+    label_nb_penalises.bind("<Button-1>", lambda _e: ouvrir_popup_penalites())
 
     def nettoyer_editeur_nom():
         for widget in editeur_nom_widgets:
@@ -1229,6 +1748,7 @@ def afficher_onglet_profil_detail(
         editeur_nom_widgets.clear()
 
     def ouvrir_editeur_nom(_event=None):
+        nettoyer_popup()
         nettoyer_editeur_nom()
 
         zone_x = 220
@@ -1362,6 +1882,7 @@ def afficher_onglet_profil_detail(
         editeur_widgets.clear()
 
     def ouvrir_editeur_periode(periode, y_ligne):
+        nettoyer_popup()
         nettoyer_editeur()
 
         x_depart = 220
@@ -1598,13 +2119,12 @@ def afficher_onglet_stats(fenetre, on_profil_click=None):
         if active:
             label.config(bg=couleur_on, fg="white")
         else:
-            label.config(bg=COLOR_BODY_BG, fg="#1B4332")
+            label.config(bg=COLOR_BODY_BG if couleur_on == "#FF7500" else "white", fg="#1B4332")
 
     def lignes_filtrees():
         lignes = list(stats)
         for nom_filtre in filtres_actifs:
             lignes = [ligne for ligne in lignes if filtres[nom_filtre](ligne)]
-        lignes.sort(key=lambda item: (-item["xp_totale"], item["nom"]))
         return lignes
 
     def rendre_tableau():
@@ -1612,8 +2132,9 @@ def afficher_onglet_stats(fenetre, on_profil_click=None):
             widget.destroy()
 
         lignes = lignes_filtrees()
+
         meilleurs_par_colonne = {}
-        for cle, _lib in colonnes:
+        for cle, _ in colonnes:
             if cle not in colonnes_visibles or not lignes:
                 continue
             meilleurs_par_colonne[cle] = max(ligne[cle] for ligne in lignes)
@@ -1659,15 +2180,12 @@ def afficher_onglet_stats(fenetre, on_profil_click=None):
                 label_nom.bind("<Button-1>", lambda _e, n=ligne["nom"]: on_profil_click(n))
 
             col_index = 1
-            for cle, _lib in colonnes:
+            for cle, _ in colonnes:
                 if cle not in colonnes_visibles:
                     continue
                 valeur = f"{ligne[cle]}%" if cle == "engagement" else str(ligne[cle])
                 est_meilleur = ligne[cle] == meilleurs_par_colonne.get(cle)
-                if est_meilleur:
-                    couleur_fond = "#F3C6C6" if cle == "penalises" else "#D8F3DC"
-                else:
-                    couleur_fond = "white"
+                couleur_fond = "#F3C6C6" if est_meilleur and cle == "penalises" else ("#D8F3DC" if est_meilleur else "white")
                 Label(
                     zone_table,
                     text=valeur,
@@ -1690,7 +2208,6 @@ def afficher_onglet_stats(fenetre, on_profil_click=None):
         rendre_tableau()
 
     def toggle_colonne(cle_colonne):
-        # Toujours garder au moins une colonne visible en plus du nom.
         if cle_colonne in colonnes_visibles and len(colonnes_visibles) == 1:
             return
         if cle_colonne in colonnes_visibles:
@@ -1774,6 +2291,10 @@ def afficher_dynanim_body(
     on_parametre_mutation=None,
     on_projets_valider=None,
     on_penalites_valider=None,
+    on_profil_projets_supprimer=None,
+    on_profil_penalites_supprimer=None,
+    on_profil_supprimer=None,
+    on_profil_reinitialiser=None,
 ):
     label_dynanim = None
     label_retour = None
@@ -1848,6 +2369,8 @@ def afficher_dynanim_body(
 
     # region Contenu onglet actif (Dynanim)
     if app_actif == "DYNANIM":
+        if dynanim_onglet_actif == "ACCUEIL":
+            afficher_onglet_accueil(fenetre, on_profil_click=on_profil_click)
         if dynanim_onglet_actif == "AJOUT":
             afficher_onglet_ajout(fenetre, on_valider=on_ajout_valider, nom_existe=on_nom_existe)
         elif dynanim_onglet_actif == "PROFILS":
@@ -1859,6 +2382,10 @@ def afficher_dynanim_body(
                 on_profil_activites_valider=on_profil_activites_valider,
                 on_profil_renommer=on_profil_renommer,
                 on_nom_existe=on_nom_existe,
+                on_profil_projets_supprimer=on_profil_projets_supprimer,
+                on_profil_penalites_supprimer=on_profil_penalites_supprimer,
+                on_profil_supprimer=on_profil_supprimer,
+                on_profil_reinitialiser=on_profil_reinitialiser,
             )
         elif dynanim_onglet_actif == "+ / -":
             afficher_onglet_bonus_malus(
