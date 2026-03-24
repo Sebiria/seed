@@ -2587,8 +2587,16 @@ def afficher_onglet_bonus_malus(
         bg=COLOR_BODY_BG,
     ).place(x=450, y=380, anchor="center")
 
-    var_penalite_profil = StringVar()
-    opt_penalite_profil = OptionMenu(fenetre, var_penalite_profil, *noms_profils)
+    valeur_profil_par_defaut = noms_profils[0] if noms_profils else "Aucun profil"
+    var_penalite_profil = StringVar(value=valeur_profil_par_defaut)
+    opt_penalite_profil = OptionMenu(
+        fenetre,
+        var_penalite_profil,
+        valeur_profil_par_defaut,
+        *noms_profils[1:],
+    )
+    if not noms_profils:
+        opt_penalite_profil.config(state="disabled")
     opt_penalite_profil.place(x=450, y=405, anchor="center")
 
     Label(
@@ -2683,6 +2691,9 @@ def afficher_onglet_bonus_malus(
             pass
 
     def valider_penalites():
+        if not noms_profils:
+            _set_message_penalite("⚠ Aucun profil disponible", "red")
+            return
         profil_nom = var_penalite_profil.get()
         if not profil_nom:
             _set_message_penalite("⚠ Sélectionner un profil", "red")
@@ -2704,7 +2715,7 @@ def afficher_onglet_bonus_malus(
             on_penalites_valider(profil_nom, date_penalite, valeur)
 
         try:
-            var_penalite_profil.set("")
+            var_penalite_profil.set(noms_profils[0] if noms_profils else "Aucun profil")
             var_penalite_annee.set(str(annee_actuelle))
             var_penalite_mois.set("")
             var_penalite_jour.set("")
